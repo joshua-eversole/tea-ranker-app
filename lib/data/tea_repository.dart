@@ -69,22 +69,16 @@ class TeaRepository extends ChangeNotifier {
     final existing = (rows as List)
         .map((e) => ToppingRow.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
-    final names = {
-      for (final t in existing) t.name.toLowerCase().trim(),
-    };
-    final missing = <Map<String, dynamic>>[];
-    for (final seed in newUserToppingSeeds) {
-      if (!names.contains(seed.toLowerCase())) {
-        missing.add({
+    final toInsert = toppingsToSeedForUser(existing.map((t) => t.name));
+    if (toInsert.isEmpty) return;
+    await _client.from('toppings').insert([
+      for (final seed in toInsert)
+        {
           'user_id': uid,
           'name': seed,
           'is_user_added': true,
-        });
-      }
-    }
-    if (missing.isNotEmpty) {
-      await _client.from('toppings').insert(missing);
-    }
+        },
+    ]);
   }
 
   Future<void> refresh() async {

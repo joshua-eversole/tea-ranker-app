@@ -6,6 +6,24 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
+import 'home_screen.dart';
+
+enum ShopDetailPhase { loading, error, empty, ready }
+
+/// Pop Home only after a successful load that shows this shop has zero drinks.
+ShopDetailPhase shopDetailPhase({
+  required bool loading,
+  required Object? loadError,
+  required bool hasProfile,
+  required bool hasDrinks,
+}) {
+  if (loadError != null) return ShopDetailPhase.error;
+  if (!hasProfile || (loading && !hasDrinks)) {
+    return ShopDetailPhase.loading;
+  }
+  if (!hasDrinks) return ShopDetailPhase.empty;
+  return ShopDetailPhase.ready;
+}
 
 class ShopDetailScreen extends StatelessWidget {
   const ShopDetailScreen({
@@ -24,12 +42,28 @@ class ShopDetailScreen extends StatelessWidget {
       builder: (context, _) {
         final item = repo.feedItem(shopId);
         final drinks = repo.drinksForShop(shopId);
-        if (item == null || drinks.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/');
-          });
-          return const SizedBox.shrink();
+        final hasDrinks = item != null && drinks.isNotEmpty;
+        final phase = shopDetailPhase(
+          loading: repo.loading,
+          loadError: repo.loadError,
+          hasProfile: repo.profile != null,
+          hasDrinks: hasDrinks,
+        );
+
+        switch (phase) {
+          case ShopDetailPhase.error:
+            return HomeLoadError(onRetry: repo.refresh);
+          case ShopDetailPhase.loading:
+            return const HomeLoadSkeleton();
+          case ShopDetailPhase.empty:
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) context.go('/');
+            });
+            return const SizedBox.shrink();
+          case ShopDetailPhase.ready:
+            break;
         }
+        final feed = item!;
         return SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -48,12 +82,12 @@ class ShopDetailScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: Text(
-                      item.shop.name,
+                      feed.shop.name,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
                   GradeOrDash(
-                    band: item.band,
+                    band: feed.band,
                     size: AppLayout.shopHeaderGradeSize,
                   ),
                 ],
@@ -61,7 +95,7 @@ class ShopDetailScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 16, bottom: 16),
                 child: Text(
-                  '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',
+                  '${feed.visitCount} ${feed.visitCount == 1 ? 'visit' : 'visits'}',
                   style: const TextStyle(color: AppColors.chocolate),
                 ),
               ),
