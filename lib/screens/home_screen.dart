@@ -17,10 +17,10 @@ class HomeScreen extends StatelessWidget {
       listenable: repo,
       builder: (context, _) {
         if (repo.loading && repo.profile == null) {
-          return const _HomeSkeleton();
+          return const HomeLoadSkeleton();
         }
-        if (repo.loadError != null && repo.profile == null) {
-          return _HomeError(onRetry: repo.refresh);
+        if (repo.loadError != null) {
+          return HomeLoadError(onRetry: repo.refresh);
         }
         final data = repo.profile;
         if (data == null || data.entries.isEmpty) {
@@ -66,8 +66,8 @@ class _HomeEmpty extends StatelessWidget {
   }
 }
 
-class _HomeError extends StatelessWidget {
-  const _HomeError({required this.onRetry});
+class HomeLoadError extends StatelessWidget {
+  const HomeLoadError({super.key, required this.onRetry});
   final VoidCallback onRetry;
 
   @override
@@ -90,8 +90,8 @@ class _HomeError extends StatelessWidget {
   }
 }
 
-class _HomeSkeleton extends StatelessWidget {
-  const _HomeSkeleton();
+class HomeLoadSkeleton extends StatelessWidget {
+  const HomeLoadSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

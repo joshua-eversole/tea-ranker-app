@@ -202,6 +202,15 @@ const newUserToppingSeeds = <String>[
   'Cheese Foam',
 ];
 
+/// Seed the six default names only for a true new user (zero toppings).
+/// Users who already have a catalog — including Joshua’s 11 — get nothing.
+List<String> toppingsToSeedForUser(Iterable<String> existingNames) {
+  if (existingNames.any((name) => name.trim().isNotEmpty)) {
+    return const [];
+  }
+  return List<String>.from(newUserToppingSeeds);
+}
+
 String formatTwd(num price) {
   if (price == price.roundToDouble()) {
     return 'NT\$ ${price.round()}';
