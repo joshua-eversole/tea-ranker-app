@@ -6,6 +6,15 @@ import '../theme/tokens.dart';
 import 'add_drink_slot.dart';
 import 'phone_frame.dart';
 
+/// Home is selected only on `/`. Logger and shop details leave pills idle
+/// so tapping Home still navigates (GNav skips `onTabChange` when already selected).
+int shellTabIndex(String location) {
+  if (location == '/' || location.isEmpty) return 0;
+  if (location.startsWith('/social')) return 1;
+  if (location.startsWith('/profile')) return 2;
+  return -1;
+}
+
 class AppShell extends StatelessWidget {
   const AppShell({
     super.key,
@@ -16,11 +25,7 @@ class AppShell extends StatelessWidget {
   final Widget child;
   final String location;
 
-  int get _tabIndex {
-    if (location.startsWith('/social')) return 1;
-    if (location.startsWith('/profile')) return 2;
-    return 0;
-  }
+  int get _tabIndex => shellTabIndex(location);
 
   AddSlotState get _slotState {
     if (location == '/log' || location.startsWith('/log')) {
@@ -100,6 +105,8 @@ class AppShell extends StatelessWidget {
             ),
             Positioned(
               left: 16,
+              // Bottom of the 64px slot sits on the bar (above the home
+              // indicator). The extra 12px is the specified overhang.
               bottom: bottomInset,
               child: AddDrinkSlot(
                 state: _slotState,

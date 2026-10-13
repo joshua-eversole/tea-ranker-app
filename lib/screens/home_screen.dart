@@ -5,6 +5,7 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
+import '../widgets/tea_skeleton.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.repo});
@@ -48,7 +49,11 @@ class _HomeEmpty extends StatelessWidget {
             const Center(
               child: Text(
                 'No drinks yet.',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.boba,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -79,7 +84,14 @@ class HomeLoadError extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Couldn’t load your log.'),
+              const Text(
+                'Couldn’t load your log.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
               const SizedBox(height: 16),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
             ],
@@ -96,35 +108,63 @@ class HomeLoadSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Taste Profile', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          const _Bone(height: 96),
-          const SizedBox(height: 16),
-          const _Bone(height: 88),
-          const SizedBox(height: 12),
-          const _Bone(height: 88),
-          const SizedBox(height: 12),
-          const _Bone(height: 88),
-        ],
+      child: TeaSkeleton(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('Taste Profile', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    TeaBone(height: 48, width: 72),
+                    TeaBone(height: 48, width: 72),
+                    TeaBone(height: 48, circle: true),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const TeaBone(height: 20, width: 80),
+            const SizedBox(height: 12),
+            const _ShopBone(),
+            const SizedBox(height: 12),
+            const _ShopBone(),
+            const SizedBox(height: 12),
+            const _ShopBone(),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Bone extends StatelessWidget {
-  const _Bone({required this.height});
-  final double height;
+class _ShopBone extends StatelessWidget {
+  const _ShopBone();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: AppColors.seed.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(AppRadii.card),
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TeaBone(height: 16, width: 140),
+                  SizedBox(height: 10),
+                  TeaBone(height: 12, width: 72),
+                ],
+              ),
+            ),
+            TeaBone(height: AppLayout.historyGradeSize, circle: true),
+          ],
+        ),
       ),
     );
   }
@@ -143,7 +183,7 @@ class _HomeLoaded extends StatelessWidget {
           Text('Taste Profile', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           Card(
-            color: AppColors.seed.withValues(alpha: 0.45),
+            color: AppSurfaces.cardTint,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               child: Wrap(
@@ -164,7 +204,7 @@ class _HomeLoaded extends StatelessWidget {
                     value: data.highestRatedShop?.shop.name ?? '—',
                     trailing: GradeOrDash(
                       band: data.highestRatedShop?.band,
-                      size: 40,
+                      size: AppLayout.historyGradeSize,
                     ),
                   ),
                 ],

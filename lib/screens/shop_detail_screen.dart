@@ -121,7 +121,7 @@ class _DrinkCard extends StatelessWidget {
     final date = DateFormat.yMMMd().format(drink.loggedAt);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -28,6 +28,14 @@ abstract final class AppRadii {
   static const chip = 999.0;
 }
 
+/// Cream cards with a seed-tinted sibling for stats / emphasis.
+abstract final class AppSurfaces {
+  static const card = AppColors.cream;
+  static final cardTint = Color.lerp(AppColors.cream, AppColors.seed, 0.42)!;
+  static final bone = AppColors.seed.withValues(alpha: 0.42);
+  static final boneHighlight = AppColors.seed.withValues(alpha: 0.72);
+}
+
 abstract final class AppLayout {
   static const maxContentWidth = 430.0;
   static const addSlotSize = 64.0;
@@ -104,11 +112,12 @@ ThemeData buildTeaTheme() {
       ),
     ),
     cardTheme: CardThemeData(
-      color: Colors.white,
+      color: AppSurfaces.card,
       elevation: 2,
       shadowColor: AppColors.boba.withValues(alpha: 0.18),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.card),
+        side: const BorderSide(color: AppColors.seed, width: 1),
       ),
       margin: EdgeInsets.zero,
     ),
@@ -147,7 +156,7 @@ ThemeData buildTeaTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.cream,
       labelStyle: const TextStyle(color: AppColors.chocolate, fontFamily: family),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),

@@ -40,4 +40,4 @@ Email confirmation is **on**. Confirm the inbox link, then sign in. Existing log
 
 ## Layout
 
-Phone-width UI (max ~430px) on a cream page. Left **Add drink** slot (idle / pressed / watching) plus Home / Social / Profile pills.
+Phone-width UI (max ~430px) on a cream page (`#FAF3E0`). Nunito Regular / SemiBold / ExtraBold (grades). Left **Add drink** slot (idle / pressed / watching, 64px with ~12px overhang) plus Home / Social / Profile pills. Prices display as `NT$ 65`.
