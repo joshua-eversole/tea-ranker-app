@@ -5,6 +5,7 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
+import '../widgets/grade_wash_surface.dart';
 import '../widgets/tea_skeleton.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -147,7 +148,8 @@ class _ShopBone extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
+    return const GradeWashSurface(
+      mark: null,
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Row(
@@ -269,36 +271,34 @@ class _ShopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/shops/${item.shop.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.shop.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+    return GradeWashSurface(
+      mark: item.band?.label,
+      onTap: () => context.push('/shops/${item.shop.id}'),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.shop.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',
-                      style: const TextStyle(color: AppColors.chocolate),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',
+                    style: const TextStyle(color: AppColors.chocolate),
+                  ),
+                ],
               ),
-              GradeOrDash(band: item.band, size: AppLayout.historyGradeSize),
-            ],
-          ),
+            ),
+            GradeOrDash(band: item.band, size: AppLayout.historyGradeSize),
+          ],
         ),
       ),
     );

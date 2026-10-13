@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
+import '../widgets/grade_wash_surface.dart';
 import 'home_screen.dart';
 
 enum ShopDetailPhase { loading, error, empty, ready }
@@ -119,7 +120,8 @@ class _DrinkCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final letter = drink.letter?.letter ?? '—';
     final date = DateFormat.yMMMd().format(drink.loggedAt);
-    return Card(
+    return GradeWashSurface(
+      mark: drink.letter?.letter,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(

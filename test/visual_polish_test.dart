@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tea_ranker/data/models.dart';
+import 'package:tea_ranker/grading/grade.dart';
+import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/widgets/app_shell.dart';
 import 'package:tea_ranker/widgets/shop_name_field.dart';
 
@@ -33,5 +36,28 @@ void main() {
     expect(shellTabIndex('/profile'), 2);
     expect(shellTabIndex('/log'), -1);
     expect(shellTabIndex('/shops/abc'), -1);
+  });
+
+  test('grade wash mixes locked fills toward cream, including +/−', () {
+    expect(
+      gradeWash('A'),
+      Color.lerp(AppColors.cream, AppColors.gradeA, kGradeWashMix),
+    );
+    expect(
+      gradeWash('A+'),
+      Color.lerp(AppColors.cream, AppColors.gradeAPlus, kGradeWashMix),
+    );
+    expect(
+      gradeWash('A−'),
+      Color.lerp(AppColors.cream, AppColors.gradeAMinus, kGradeWashMix),
+    );
+    expect(
+      gradeWash('S'),
+      Color.lerp(AppColors.cream, AppColors.gradeS, kGradeWashMix),
+    );
+    expect(
+      gradeWash(null),
+      Color.lerp(AppColors.cream, AppColors.seed, kGradeWashMix),
+    );
   });
 }

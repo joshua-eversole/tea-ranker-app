@@ -104,3 +104,13 @@ AggregateBand? bandForAverage(double? avg) {
     _ => (AppColors.seed, AppColors.boba),
   };
 }
+
+/// Weak wash of a grade fill mixed into cream. No mark → faint seed.
+const kGradeWashMix = 0.16;
+
+Color gradeWash(String? mark) {
+  if (mark == null || mark.trim().isEmpty || mark == '—') {
+    return Color.lerp(AppColors.cream, AppColors.seed, kGradeWashMix)!;
+  }
+  return Color.lerp(AppColors.cream, colorsForMark(mark).$1, kGradeWashMix)!;
+}
