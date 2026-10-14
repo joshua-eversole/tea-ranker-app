@@ -6,6 +6,8 @@ abstract final class AppColors {
   static const seed = Color(0xFFD4B59E);
   static const boba = Color(0xFF2C1E16);
   static const bobaWatching = Color(0xFF1A110C);
+  static const sugarRed = Color(0xFFE53935);
+  static const iceBlue = Color(0xFF1E88E5);
 
   static const gradeS = Color(0xFFE6B422);
   static const gradeSOn = Color(0xFF2C1E16);

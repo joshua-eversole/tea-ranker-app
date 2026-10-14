@@ -89,7 +89,9 @@ class TeaRepository extends ChangeNotifier {
     final existing = (rows as List)
         .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
-    final toInsert = shopsToSeedForUser(existing.map((s) => s.name));
+    // Any existing catalog (Joshua’s 18, or ZH-only rows) is left untouched.
+    if (existing.isNotEmpty) return;
+    final toInsert = shopsToSeedForUser(const []);
     if (toInsert.isEmpty) return;
     final payload = [
       for (final seed in toInsert)
@@ -281,23 +283,41 @@ class TeaRepository extends ChangeNotifier {
     if (uid == null) {
       throw StateError('Not signed in');
     }
-    final needle = rawName.trim().toLowerCase();
     final shops = profile?.shops ?? const <ShopRow>[];
     for (final shop in shops) {
-      if (shop.name.trim().toLowerCase() == needle) return shop;
-      final zh = shop.chineseName?.toLowerCase();
-      if (zh != null && zh == needle) return shop;
+      if (shop.matchesNeedle(rawName)) return shop;
     }
-    final inserted = await _client
-        .from('shops')
-        .insert({
-          'user_id': uid,
-          'name': rawName.trim(),
-          'is_user_added': true,
-        })
-        .select()
-        .single();
-    return ShopRow.fromMap(inserted);
+    final columns = shopCreateColumns(rawName);
+    if (trimToNull(columns['name'] as String?) == null &&
+        trimToNull(columns['name_zh'] as String?) == null) {
+      throw ArgumentError('Shop name is empty');
+    }
+    try {
+      final inserted = await _client
+          .from('shops')
+          .insert({
+            'user_id': uid,
+            ...columns,
+            'is_user_added': true,
+          })
+          .select()
+          .single();
+      return ShopRow.fromMap(inserted);
+    } catch (e) {
+      // English-only fallback if `name_zh` is not migrated yet. Never invent
+      // a dummy English name for a Chinese-only shop.
+      if (columns['name'] == null) rethrow;
+      final inserted = await _client
+          .from('shops')
+          .insert({
+            'user_id': uid,
+            'name': columns['name'],
+            'is_user_added': true,
+          })
+          .select()
+          .single();
+      return ShopRow.fromMap(inserted);
+    }
   }
 
   Future<ToppingRow> matchOrCreateTopping(String rawName) async {
@@ -379,21 +399,48 @@ class TeaRepository extends ChangeNotifier {
     required String name,
     String? nameZh,
   }) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError('Shop name is empty');
+    final en = trimToNull(name);
+    final zh = trimToNull(nameZh);
+    if (en == null && zh == null) {
+      throw ArgumentError('Need an English or Chinese shop name');
     }
-    final zh = nameZh?.trim();
     final payload = <String, dynamic>{
-      'name': trimmed,
-      'name_zh': (zh == null || zh.isEmpty) ? null : zh,
+      'name': en,
+      'name_zh': zh,
     };
     try {
       await _client.from('shops').update(payload).eq('id', shopId);
     } catch (_) {
-      await _client.from('shops').update({'name': trimmed}).eq('id', shopId);
+      if (en == null) rethrow;
+      await _client.from('shops').update({'name': en}).eq('id', shopId);
     }
     await refresh();
+  }
+
+  Future<void> updateTasteDefaults({
+    required int sugarPercent,
+    required int icePercent,
+  }) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final sugar = snapPercent(sugarPercent);
+    final ice = snapPercent(icePercent);
+    await _client.from('profiles').update({
+      'default_sugar_percent': sugar,
+      'default_ice_percent': ice,
+    }).eq('id', uid);
+    final current = account;
+    if (current != null) {
+      account = ProfileRow(
+        id: current.id,
+        username: current.username,
+        defaultSugarPercent: sugar,
+        defaultIcePercent: ice,
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> updateShopNotes({

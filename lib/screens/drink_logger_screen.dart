@@ -7,6 +7,7 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
+import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
 
 class DrinkLoggerScreen extends StatefulWidget {
@@ -27,15 +28,44 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
 
   DateTime _day = DateTime.now();
   String? _base;
-  double _sugar = 50;
-  double _ice = 50;
+  late double _sugar;
+  late double _ice;
+  bool _defaultsApplied = false;
+  bool _touchedLevels = false;
   LetterGrade? _grade;
   final _selected = <String>{};
   bool _saving = false;
   String? _banner;
 
   @override
+  void initState() {
+    super.initState();
+    final account = widget.repo.account;
+    if (account != null) {
+      _sugar = account.defaultSugarPercent.toDouble();
+      _ice = account.defaultIcePercent.toDouble();
+      _defaultsApplied = true;
+    } else {
+      _sugar = 50;
+      _ice = 50;
+    }
+    widget.repo.addListener(_applyDefaultsIfNeeded);
+  }
+
+  void _applyDefaultsIfNeeded() {
+    if (_defaultsApplied || _touchedLevels) return;
+    final account = widget.repo.account;
+    if (account == null || !mounted) return;
+    setState(() {
+      _sugar = account.defaultSugarPercent.toDouble();
+      _ice = account.defaultIcePercent.toDouble();
+      _defaultsApplied = true;
+    });
+  }
+
+  @override
   void dispose() {
+    widget.repo.removeListener(_applyDefaultsIfNeeded);
     _shop.dispose();
     _tea.dispose();
     _price.dispose();
@@ -230,23 +260,23 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Sugar  ${_sugar.round()}%'),
-                        Slider(
+                        PercentGradientSlider(
+                          label: 'Sugar',
                           value: _sugar,
-                          min: 0,
-                          max: 100,
-                          divisions: 10,
-                          label: '${_sugar.round()}%',
-                          onChanged: (v) => setState(() => _sugar = v),
+                          strongColor: AppColors.sugarRed,
+                          onChanged: (v) {
+                            _touchedLevels = true;
+                            setState(() => _sugar = v);
+                          },
                         ),
-                        Text('Ice  ${_ice.round()}%'),
-                        Slider(
+                        PercentGradientSlider(
+                          label: 'Ice',
                           value: _ice,
-                          min: 0,
-                          max: 100,
-                          divisions: 10,
-                          label: '${_ice.round()}%',
-                          onChanged: (v) => setState(() => _ice = v),
+                          strongColor: AppColors.iceBlue,
+                          onChanged: (v) {
+                            _touchedLevels = true;
+                            setState(() => _ice = v);
+                          },
                         ),
                       ],
                     ),

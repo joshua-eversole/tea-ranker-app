@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
 
 import '../theme/tokens.dart';
 import 'add_drink_slot.dart';
 import 'phone_frame.dart';
+import 'tea_nav_bar.dart';
 
 /// Home is selected only on `/`. Logger and shop details leave pills idle
 /// so tapping Home still navigates (GNav skips `onTabChange` when already selected).
@@ -76,33 +76,13 @@ class AppShell extends StatelessWidget {
                     height: AppLayout.barContentHeight,
                     child: Row(
                       children: [
-                        const SizedBox(width: AppLayout.addSlotSize + 24),
+                        // Add + overhangs from the left; this spacer keeps
+                        // Home in its equal quarter and is not a fifth tab.
+                        const SizedBox(width: AppLayout.addSlotSize + 8),
                         Expanded(
-                          child: GNav(
+                          child: TeaNavBar(
                             selectedIndex: _tabIndex,
-                            onTabChange: (i) => _onTabChange(context, i),
-                            gap: 4,
-                            iconSize: 20,
-                            color: AppColors.chocolate,
-                            activeColor: Colors.white,
-                            tabBackgroundColor: AppColors.boba,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 8,
-                            ),
-                            duration: Duration.zero,
-                            tabs: const [
-                              GButton(icon: Icons.home_rounded, text: 'Home'),
-                              GButton(icon: Icons.map_rounded, text: 'Map'),
-                              GButton(
-                                icon: Icons.groups_rounded,
-                                text: 'Social',
-                              ),
-                              GButton(
-                                icon: Icons.person_rounded,
-                                text: 'Profile',
-                              ),
-                            ],
+                            onSelect: (i) => _onTabChange(context, i),
                           ),
                         ),
                         const SizedBox(width: 8),

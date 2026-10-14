@@ -14,12 +14,14 @@ List<ShopRow> matchingShops(List<ShopRow> shops, String query, {int limit = 8}) 
   final starts = <ShopRow>[];
   final contains = <ShopRow>[];
   for (final shop in shops) {
-    final name = shop.name.toLowerCase();
+    final name = (shop.englishName ?? '').toLowerCase();
     final zh = (shop.chineseName ?? '').toLowerCase();
-    if (name == q || (zh.isNotEmpty && zh == q)) continue;
-    if (_nameStarts(name, q) || (zh.isNotEmpty && _nameStarts(zh, q))) {
+    if (shop.matchesNeedle(q)) continue;
+    if ((name.isNotEmpty && _nameStarts(name, q)) ||
+        (zh.isNotEmpty && _nameStarts(zh, q))) {
       starts.add(shop);
-    } else if (_nameContains(name, q) || (zh.isNotEmpty && _nameContains(zh, q))) {
+    } else if ((name.isNotEmpty && _nameContains(name, q)) ||
+        (zh.isNotEmpty && _nameContains(zh, q))) {
       contains.add(shop);
     }
   }
@@ -53,7 +55,7 @@ class ShopNameField extends StatelessWidget {
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
             labelText: 'Shop',
-            hintText: 'Start typing a shop name',
+            hintText: 'English or 中文',
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -74,16 +76,15 @@ class ShopNameField extends StatelessWidget {
                       color: AppColors.chocolate,
                     ),
                     title: Text(
-                      shop.name,
+                      shop.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: shop.chineseName == null
-                        ? null
-                        : Text(shop.chineseName!),
                     onTap: () {
-                      controller.text = shop.name;
+                      controller.text = shop.displayName;
                       controller.selection = TextSelection.collapsed(
-                        offset: shop.name.length,
+                        offset: shop.displayName.length,
                       );
                       onChanged();
                     },
