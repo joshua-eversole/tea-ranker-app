@@ -88,6 +88,8 @@ class _TeaRankerAppState extends State<TeaRankerApp> {
 }
 
 GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
+  // Default hash URLs (`/#/login`) on web — required for GitHub Pages
+  // (static hosting, no SPA rewrite). Do not call usePathUrlStrategy().
   return GoRouter(
     initialLocation: '/',
     refreshListenable: auth,
