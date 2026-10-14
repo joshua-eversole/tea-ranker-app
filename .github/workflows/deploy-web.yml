@@ -46,11 +46,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          APP_URL: ${{ vars.APP_URL }}
         run: |
           flutter build web --release \
             --base-href /tea-ranker-app/ \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
+            --dart-define=APP_URL="${APP_URL:-https://joshua-eversole.github.io/tea-ranker-app/}"
           # GitHub Pages ignores paths that look like Jekyll internals.
           touch build/web/.nojekyll
 

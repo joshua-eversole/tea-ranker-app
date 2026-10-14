@@ -50,7 +50,8 @@ Or pass flags:
 ```bash
 flutter run -d chrome \
   --dart-define=SUPABASE_URL=https://lqedlqatzlrrmkheoqbr.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-publishable-key \
+  --dart-define=APP_URL=https://joshua-eversole.github.io/tea-ranker-app/
 ```
 
 Web server (uncommon port):
@@ -66,7 +67,8 @@ Release build (same defines the Pages workflow uses):
 flutter build web --release \
   --base-href /tea-ranker-app/ \
   --dart-define=SUPABASE_URL=https://lqedlqatzlrrmkheoqbr.supabase.co \
-  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=your-publishable-key \
+  --dart-define=APP_URL=https://joshua-eversole.github.io/tea-ranker-app/
 ```
 
 Missing URL or publishable key shows an in-app setup screen instead of crashing.
@@ -74,6 +76,19 @@ Missing URL or publishable key shows an in-app setup screen instead of crashing.
 ## After signup
 
 Email confirmation is **on**. Confirm the inbox link, then sign in. Existing logs stay in your account (Joshua’s 22 drinks are not wiped by this app).
+
+The app passes `emailRedirectTo` from the compile-time **`APP_URL`** dart-define (default `https://joshua-eversole.github.io/tea-ranker-app/`, no hash). That origin works with hash routes (`/#/login`): GoTrue appends `?code=` (PKCE) or `#access_token=` on the Pages path, so a `/#/login` redirect would collide. Do **not** default `APP_URL` or the dashboard Site URL to localhost.
+
+### Supabase Dashboard → Authentication → URL Configuration
+
+Joshua must set these on the live project (`https://lqedlqatzlrrmkheoqbr.supabase.co`). Dashboard only — this app never uses `service_role`.
+
+| Field | Value |
+| --- | --- |
+| **Site URL** | `https://joshua-eversole.github.io/tea-ranker-app/` |
+| **Redirect URLs** | `https://joshua-eversole.github.io/tea-ranker-app/` **and** `https://joshua-eversole.github.io/tea-ranker-app/**` |
+
+Add a localhost redirect only if you are testing confirmation against a local `flutter run`. Leave **Site URL** on the GitHub Pages origin so live signups do not email `localhost` links.
 
 ## Layout
 
