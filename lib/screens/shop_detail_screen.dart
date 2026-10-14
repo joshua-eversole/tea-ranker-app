@@ -81,14 +81,14 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
         setState(() {
           _savingNotes = false;
           _notesError =
-              'Couldn’t save shop notes. If this is the first time, paste supabase/shops_name_zh_and_notes.sql in the Supabase SQL editor.';
+              'Couldn’t save shop notes. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.';
         });
       }
     }
   }
 
   Future<void> _editNames(ShopRow shop) async {
-    final name = TextEditingController(text: shop.name);
+    final name = TextEditingController(text: shop.name ?? '');
     final zh = TextEditingController(text: shop.nameZh ?? '');
     try {
       final saved = await showDialog<bool>(
@@ -123,7 +123,9 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
               ),
               FilledButton(
                 onPressed: () {
-                  if (name.text.trim().isEmpty) return;
+                  if (name.text.trim().isEmpty && zh.text.trim().isEmpty) {
+                    return;
+                  }
                   Navigator.pop(context, true);
                 },
                 child: const Text('Save'),

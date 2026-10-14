@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
+import '../widgets/percent_slider.dart';
+import '../widgets/taste_stats_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -17,66 +19,167 @@ class ProfileScreen extends StatelessWidget {
       listenable: repo,
       builder: (context, _) {
         final username = repo.account?.username ?? '—';
+        final data = repo.profile;
         return SafeArea(
-          child: Padding(
+          child: ListView(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Profile', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Username',
-                          style: TextStyle(color: AppColors.chocolate),
+            children: [
+              Text('Profile', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Username',
+                        style: TextStyle(color: AppColors.chocolate),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        username,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          username,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Email',
-                          style: TextStyle(color: AppColors.chocolate),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(email),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Email',
+                        style: TextStyle(color: AppColors.chocolate),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(email),
+                    ],
                   ),
                 ),
+              ),
+              if (data != null && data.entries.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () async {
-                    await repo.signOut();
-                    if (context.mounted) context.go('/login');
-                  },
-                  child: const Text('Sign out'),
+                Text(
+                  'Taste Profile',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const Spacer(),
-                const Center(
-                  child: Text(
-                    'Tea Ranker · PWA',
-                    style: TextStyle(
-                      color: AppColors.chocolate,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 8),
+                TasteStatsCard(data: data),
               ],
-            ),
+              const SizedBox(height: 24),
+              Text(
+                'Drink defaults',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _DefaultSliders(
+                key: ValueKey(
+                  '${repo.account?.defaultSugarPercent}-${repo.account?.defaultIcePercent}',
+                ),
+                repo: repo,
+                sugar: repo.account?.defaultSugarPercent ?? 50,
+                ice: repo.account?.defaultIcePercent ?? 50,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () async {
+                  await repo.signOut();
+                  if (context.mounted) context.go('/login');
+                },
+                child: const Text('Sign out'),
+              ),
+              const SizedBox(height: 32),
+              const Center(
+                child: Text(
+                  'Tea Ranker · PWA',
+                  style: TextStyle(
+                    color: AppColors.chocolate,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+class _DefaultSliders extends StatefulWidget {
+  const _DefaultSliders({
+    super.key,
+    required this.repo,
+    required this.sugar,
+    required this.ice,
+  });
+
+  final TeaRepository repo;
+  final int sugar;
+  final int ice;
+
+  @override
+  State<_DefaultSliders> createState() => _DefaultSlidersState();
+}
+
+class _DefaultSlidersState extends State<_DefaultSliders> {
+  late double _sugar;
+  late double _ice;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _sugar = widget.sugar.toDouble();
+    _ice = widget.ice.toDouble();
+  }
+
+  Future<void> _persist() async {
+    try {
+      await widget.repo.updateTasteDefaults(
+        sugarPercent: _sugar.round(),
+        icePercent: _ice.round(),
+      );
+      if (mounted) setState(() => _error = null);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error =
+              'Couldn’t save defaults. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'New logs start at these sugar and ice levels.',
+              style: TextStyle(color: AppColors.chocolate),
+            ),
+            PercentGradientSlider(
+              label: 'Default sugar',
+              value: _sugar,
+              strongColor: AppColors.sugarRed,
+              onChanged: (v) => setState(() => _sugar = v),
+              onChangeEnd: (_) => _persist(),
+            ),
+            PercentGradientSlider(
+              label: 'Default ice',
+              value: _ice,
+              strongColor: AppColors.iceBlue,
+              onChanged: (v) => setState(() => _ice = v),
+              onChangeEnd: (_) => _persist(),
+            ),
+            if (_error != null)
+              Text(_error!, style: const TextStyle(color: AppColors.gradeD)),
+          ],
+        ),
+      ),
     );
   }
 }

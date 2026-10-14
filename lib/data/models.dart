@@ -1,20 +1,52 @@
 import '../grading/grade.dart';
 
+int snapPercent(int value) {
+  final clamped = value.clamp(0, 100);
+  return ((clamped / 10).round() * 10).clamp(0, 100);
+}
+
 class ProfileRow {
-  const ProfileRow({required this.id, required this.username});
+  const ProfileRow({
+    required this.id,
+    required this.username,
+    this.defaultSugarPercent = 50,
+    this.defaultIcePercent = 50,
+  });
   final String id;
   final String username;
+  final int defaultSugarPercent;
+  final int defaultIcePercent;
 
   factory ProfileRow.fromMap(Map<String, dynamic> map) => ProfileRow(
         id: map['id'] as String,
         username: (map['username'] as String?) ?? '',
+        defaultSugarPercent:
+            snapPercent((map['default_sugar_percent'] as num?)?.toInt() ?? 50),
+        defaultIcePercent:
+            snapPercent((map['default_ice_percent'] as num?)?.toInt() ?? 50),
       );
+}
+
+final _latin = RegExp(r'[A-Za-z]');
+final _cjk = RegExp(r'[\u3400-\u9FFF\uF900-\uFAFF]');
+
+/// Logger heuristic: CJK with no Latin letters → save as `name_zh` only.
+bool looksLikeChineseOnly(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return false;
+  return _cjk.hasMatch(t) && !_latin.hasMatch(t);
+}
+
+String? trimToNull(String? value) {
+  final t = value?.trim();
+  if (t == null || t.isEmpty) return null;
+  return t;
 }
 
 class ShopRow {
   const ShopRow({
     required this.id,
-    required this.name,
+    this.name,
     required this.userId,
     required this.isUserAdded,
     this.nameZh,
@@ -22,8 +54,8 @@ class ShopRow {
   });
 
   final String id;
-  /// Primary display name (English).
-  final String name;
+  /// English name (`shops.name`). Null when the shop is Chinese-only.
+  final String? name;
   /// Optional Chinese name (`shops.name_zh`).
   final String? nameZh;
   /// Shop-level notes (`shops.notes`), not drink notes.
@@ -31,15 +63,30 @@ class ShopRow {
   final String? userId;
   final bool isUserAdded;
 
-  String? get chineseName {
-    final v = nameZh?.trim();
-    if (v == null || v.isEmpty) return null;
-    return v;
+  String? get englishName => trimToNull(name);
+
+  String? get chineseName => trimToNull(nameZh);
+
+  /// `English / 中文` when both exist; otherwise the one that exists.
+  String get displayName {
+    final en = englishName;
+    final zh = chineseName;
+    if (en != null && zh != null) return '$en / $zh';
+    return en ?? zh ?? '';
+  }
+
+  bool matchesNeedle(String raw) {
+    final n = raw.trim().toLowerCase();
+    if (n.isEmpty) return false;
+    if (englishName?.toLowerCase() == n) return true;
+    if (chineseName?.toLowerCase() == n) return true;
+    if (displayName.toLowerCase() == n) return true;
+    return false;
   }
 
   factory ShopRow.fromMap(Map<String, dynamic> map) => ShopRow(
         id: map['id'] as String,
-        name: map['name'] as String,
+        name: map['name'] as String?,
         nameZh: map['name_zh'] as String?,
         notes: map['notes'] as String?,
         userId: map['user_id'] as String?,
@@ -50,18 +97,27 @@ class ShopRow {
     String? name,
     String? nameZh,
     String? notes,
+    bool clearName = false,
     bool clearNameZh = false,
     bool clearNotes = false,
   }) {
     return ShopRow(
       id: id,
-      name: name ?? this.name,
+      name: clearName ? null : (name ?? this.name),
       nameZh: clearNameZh ? null : (nameZh ?? this.nameZh),
       notes: clearNotes ? null : (notes ?? this.notes),
       userId: userId,
       isUserAdded: isUserAdded,
     );
   }
+}
+
+Map<String, dynamic> shopCreateColumns(String raw) {
+  final trimmed = raw.trim();
+  if (looksLikeChineseOnly(trimmed)) {
+    return {'name': null, 'name_zh': trimmed};
+  }
+  return {'name': trimmed, 'name_zh': null};
 }
 
 class ToppingRow {

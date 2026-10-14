@@ -77,8 +77,10 @@ Email confirmation is **on**. Confirm the inbox link, then sign in. Existing log
 
 ## Layout
 
-Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus Home / Map / Social / Profile pills (Map uses a map icon; Map and Social are “still brewing”). Shop details have **Visits** and **Notes**. New users get bilingual Taiwan chain names (English + 中文); existing shops are never wiped.
+Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus evenly spaced Home / Map / Social / Profile pills (Map uses a map icon; Map and Social are “still brewing”). Home greets you by username and lists shops; Taste Profile stats and sugar/ice defaults live on Profile. Shop details have **Visits** and **Notes**. Shop names show on one line as `English / 中文`. New users get bilingual Taiwan chain names; existing shops are never wiped. Chinese-only shop names are valid.
 
-## Shop names SQL (Supabase)
+## Shop names + defaults SQL (Supabase)
 
-Paste [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_notes.sql) in the Supabase SQL editor (project owner). It only adds `shops.name_zh` and `shops.notes`. RLS stays owner-only. Do not use `service_role`.
+Paste [`supabase/zh_only_shops_and_profile_defaults.sql`](supabase/zh_only_shops_and_profile_defaults.sql) in the Supabase SQL editor (project owner). It is additive: nullable English `shops.name`, unique `(user_id, name)` and `(user_id, name_zh)` partial indexes, plus `profiles.default_sugar_percent` / `default_ice_percent`. It does not rewrite Joshua’s rows. RLS stays owner-only. Do not use `service_role`.
+
+The earlier [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_notes.sql) snippet is still safe if you already ran it (`IF NOT EXISTS`).

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
-import '../theme/tokens.dart';
 
-/// Primary English name with optional Chinese line.
+/// One line: `English / 中文`, English only, or 中文 only. Never two lines.
 class ShopNameText extends StatelessWidget {
   const ShopNameText({
     super.key,
@@ -16,23 +15,12 @@ class ShopNameText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final zh = shop.chineseName;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          shop.name,
-          style: nameStyle ??
-              const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        if (zh != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            zh,
-            style: const TextStyle(color: AppColors.chocolate, fontSize: 13),
-          ),
-        ],
-      ],
+    return Text(
+      shop.displayName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: nameStyle ??
+          const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
     );
   }
 }
