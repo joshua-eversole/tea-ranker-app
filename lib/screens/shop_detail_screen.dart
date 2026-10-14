@@ -7,6 +7,7 @@ import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
+import '../widgets/shop_name_text.dart';
 import 'home_screen.dart';
 
 enum ShopDetailPhase { loading, error, empty, ready }
@@ -26,7 +27,7 @@ ShopDetailPhase shopDetailPhase({
   return ShopDetailPhase.ready;
 }
 
-class ShopDetailScreen extends StatelessWidget {
+class ShopDetailScreen extends StatefulWidget {
   const ShopDetailScreen({
     super.key,
     required this.repo,
@@ -37,23 +38,130 @@ class ShopDetailScreen extends StatelessWidget {
   final String shopId;
 
   @override
+  State<ShopDetailScreen> createState() => _ShopDetailScreenState();
+}
+
+class _ShopDetailScreenState extends State<ShopDetailScreen> {
+  int _tab = 0;
+  final _notes = TextEditingController();
+  String? _notesShopId;
+  bool _savingNotes = false;
+  String? _notesError;
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _syncNotes(ShopRow shop) {
+    if (_notesShopId == shop.id) return;
+    _notesShopId = shop.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _notesShopId != shop.id) return;
+      _notes.text = shop.notes ?? '';
+    });
+  }
+
+  Future<void> _saveNotes(ShopRow shop) async {
+    setState(() {
+      _savingNotes = true;
+      _notesError = null;
+    });
+    try {
+      await widget.repo.updateShopNotes(
+        shopId: shop.id,
+        notes: _notes.text,
+      );
+      if (mounted) {
+        setState(() => _savingNotes = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _savingNotes = false;
+          _notesError =
+              'Couldn’t save shop notes. If this is the first time, paste supabase/shops_name_zh_and_notes.sql in the Supabase SQL editor.';
+        });
+      }
+    }
+  }
+
+  Future<void> _editNames(ShopRow shop) async {
+    final name = TextEditingController(text: shop.name);
+    final zh = TextEditingController(text: shop.nameZh ?? '');
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: AppColors.cream,
+            title: const Text('Shop names'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'English',
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: zh,
+                  decoration: const InputDecoration(
+                    labelText: '中文',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (name.text.trim().isEmpty) return;
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      );
+      if (saved != true || !mounted) return;
+      await widget.repo.updateShopNames(
+        shopId: shop.id,
+        name: name.text,
+        nameZh: zh.text,
+      );
+    } finally {
+      name.dispose();
+      zh.dispose();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: repo,
+      listenable: widget.repo,
       builder: (context, _) {
-        final item = repo.feedItem(shopId);
-        final drinks = repo.drinksForShop(shopId);
+        final item = widget.repo.feedItem(widget.shopId);
+        final drinks = widget.repo.drinksForShop(widget.shopId);
         final hasDrinks = item != null && drinks.isNotEmpty;
         final phase = shopDetailPhase(
-          loading: repo.loading,
-          loadError: repo.loadError,
-          hasProfile: repo.profile != null,
+          loading: widget.repo.loading,
+          loadError: widget.repo.loadError,
+          hasProfile: widget.repo.profile != null,
           hasDrinks: hasDrinks,
         );
 
         switch (phase) {
           case ShopDetailPhase.error:
-            return HomeLoadError(onRetry: repo.refresh);
+            return HomeLoadError(onRetry: widget.repo.refresh);
           case ShopDetailPhase.loading:
             return const HomeLoadSkeleton();
           case ShopDetailPhase.empty:
@@ -65,49 +173,168 @@ class ShopDetailScreen extends StatelessWidget {
             break;
         }
         final feed = item!;
+        _syncNotes(feed.shop);
         return SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/');
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                  Expanded(
-                    child: Text(
-                      feed.shop.name,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  GradeOrDash(
-                    band: feed.band,
-                    size: AppLayout.shopHeaderGradeSize,
-                  ),
-                ],
-              ),
               Padding(
-                padding: const EdgeInsets.only(left: 16, bottom: 16),
-                child: Text(
-                  '${feed.visitCount} ${feed.visitCount == 1 ? 'visit' : 'visits'}',
-                  style: const TextStyle(color: AppColors.chocolate),
+                padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/');
+                        }
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                    ),
+                    Expanded(child: ShopNameText(shop: feed.shop)),
+                    IconButton(
+                      tooltip: 'Edit names',
+                      onPressed: () => _editNames(feed.shop),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    GradeOrDash(
+                      band: feed.band,
+                      size: AppLayout.shopHeaderGradeSize,
+                    ),
+                  ],
                 ),
               ),
-              for (final drink in drinks) ...[
-                _DrinkCard(drink: drink),
-                const SizedBox(height: 10),
-              ],
+              Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${feed.visitCount} ${feed.visitCount == 1 ? 'visit' : 'visits'}',
+                    style: const TextStyle(color: AppColors.chocolate),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _DetailTab(
+                      label: 'Visits',
+                      selected: _tab == 0,
+                      onTap: () => setState(() => _tab = 0),
+                    ),
+                    const SizedBox(width: 8),
+                    _DetailTab(
+                      label: 'Notes',
+                      selected: _tab == 1,
+                      onTap: () => setState(() => _tab = 1),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: _tab == 0
+                    ? ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        children: [
+                          for (final drink in drinks) ...[
+                            _DrinkCard(drink: drink),
+                            const SizedBox(height: 10),
+                          ],
+                        ],
+                      )
+                    : _ShopNotesTab(
+                        controller: _notes,
+                        saving: _savingNotes,
+                        error: _notesError,
+                        onSave: () => _saveNotes(feed.shop),
+                      ),
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _DetailTab extends StatelessWidget {
+  const _DetailTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.boba : AppColors.seed,
+      borderRadius: BorderRadius.circular(AppRadii.chip),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.chip),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : AppColors.boba,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopNotesTab extends StatelessWidget {
+  const _ShopNotesTab({
+    required this.controller,
+    required this.saving,
+    required this.error,
+    required this.onSave,
+  });
+
+  final TextEditingController controller;
+  final bool saving;
+  final String? error;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        const Text(
+          'Notes about this shop — parking, regular order, hours. Drink notes stay on each log.',
+          style: TextStyle(color: AppColors.chocolate),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: controller,
+          minLines: 6,
+          maxLines: 12,
+          decoration: const InputDecoration(
+            hintText: 'Add a shop note',
+            alignLabelWithHint: true,
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 12),
+          Text(error!, style: const TextStyle(color: AppColors.gradeD)),
+        ],
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: saving ? null : onSave,
+          child: Text(saving ? 'Saving…' : 'Save notes'),
+        ),
+      ],
     );
   }
 }

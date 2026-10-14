@@ -6,6 +6,7 @@ import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
+import '../widgets/shop_name_text.dart';
 import '../widgets/tea_skeleton.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -282,13 +283,7 @@ class _ShopCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.shop.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
+                  ShopNameText(shop: item.shop),
                   const SizedBox(height: 4),
                   Text(
                     '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',

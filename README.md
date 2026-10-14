@@ -77,4 +77,8 @@ Email confirmation is **on**. Confirm the inbox link, then sign in. Existing log
 
 ## Layout
 
-Phone-width UI (max ~430px) on a cream page. Left **Add drink** slot (idle / pressed / watching) plus Home / Social / Profile pills.
+Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus Home / Map / Social / Profile pills (Map uses a map icon; Map and Social are “still brewing”). Shop details have **Visits** and **Notes**. New users get bilingual Taiwan chain names (English + 中文); existing shops are never wiped.
+
+## Shop names SQL (Supabase)
+
+Paste [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_notes.sql) in the Supabase SQL editor (project owner). It only adds `shops.name_zh` and `shops.notes`. RLS stays owner-only. Do not use `service_role`.

@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../theme/tokens.dart';
 
+bool _nameStarts(String name, String q) => name.startsWith(q);
+bool _nameContains(String name, String q) => name.contains(q);
+
 /// Prefix matches first, then substring. Exact current text is omitted.
+/// Matches English `name` and Chinese `name_zh`.
 List<ShopRow> matchingShops(List<ShopRow> shops, String query, {int limit = 8}) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return const [];
@@ -11,10 +15,11 @@ List<ShopRow> matchingShops(List<ShopRow> shops, String query, {int limit = 8}) 
   final contains = <ShopRow>[];
   for (final shop in shops) {
     final name = shop.name.toLowerCase();
-    if (name == q) continue;
-    if (name.startsWith(q)) {
+    final zh = (shop.chineseName ?? '').toLowerCase();
+    if (name == q || (zh.isNotEmpty && zh == q)) continue;
+    if (_nameStarts(name, q) || (zh.isNotEmpty && _nameStarts(zh, q))) {
       starts.add(shop);
-    } else if (name.contains(q)) {
+    } else if (_nameContains(name, q) || (zh.isNotEmpty && _nameContains(zh, q))) {
       contains.add(shop);
     }
   }
@@ -72,6 +77,9 @@ class ShopNameField extends StatelessWidget {
                       shop.name,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
+                    subtitle: shop.chineseName == null
+                        ? null
+                        : Text(shop.chineseName!),
                     onTap: () {
                       controller.text = shop.name;
                       controller.selection = TextSelection.collapsed(

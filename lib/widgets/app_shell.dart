@@ -10,8 +10,9 @@ import 'phone_frame.dart';
 /// so tapping Home still navigates (GNav skips `onTabChange` when already selected).
 int shellTabIndex(String location) {
   if (location == '/' || location.isEmpty) return 0;
-  if (location.startsWith('/social')) return 1;
-  if (location.startsWith('/profile')) return 2;
+  if (location.startsWith('/map')) return 1;
+  if (location.startsWith('/social')) return 2;
+  if (location.startsWith('/profile')) return 3;
   return -1;
 }
 
@@ -34,6 +35,19 @@ class AppShell extends StatelessWidget {
     return AddSlotState.idle;
   }
 
+  void _onTabChange(BuildContext context, int i) {
+    switch (i) {
+      case 0:
+        context.go('/');
+      case 1:
+        context.go('/map');
+      case 2:
+        context.go('/social');
+      case 3:
+        context.go('/profile');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -47,7 +61,7 @@ class AppShell extends StatelessWidget {
             Positioned.fill(
               child: Padding(
                 padding: EdgeInsets.only(bottom: barBlock),
-                child: child,
+                child: ClipRect(child: child),
               ),
             ),
             Positioned(
@@ -66,29 +80,24 @@ class AppShell extends StatelessWidget {
                         Expanded(
                           child: GNav(
                             selectedIndex: _tabIndex,
-                            onTabChange: (i) {
-                              switch (i) {
-                                case 0:
-                                  context.go('/');
-                                case 1:
-                                  context.go('/social');
-                                case 2:
-                                  context.go('/profile');
-                              }
-                            },
-                            gap: 6,
+                            onTabChange: (i) => _onTabChange(context, i),
+                            gap: 4,
                             iconSize: 20,
                             color: AppColors.chocolate,
                             activeColor: Colors.white,
                             tabBackgroundColor: AppColors.boba,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 10,
+                              horizontal: 8,
+                              vertical: 8,
                             ),
-                            duration: const Duration(milliseconds: 280),
+                            duration: Duration.zero,
                             tabs: const [
                               GButton(icon: Icons.home_rounded, text: 'Home'),
-                              GButton(icon: Icons.groups_rounded, text: 'Social'),
+                              GButton(icon: Icons.map_rounded, text: 'Map'),
+                              GButton(
+                                icon: Icons.groups_rounded,
+                                text: 'Social',
+                              ),
                               GButton(
                                 icon: Icons.person_rounded,
                                 text: 'Profile',
