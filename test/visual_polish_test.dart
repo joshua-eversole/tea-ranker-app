@@ -32,8 +32,9 @@ void main() {
 
   test('nav pills idle on logger and shop details, selected on Home', () {
     expect(shellTabIndex('/'), 0);
-    expect(shellTabIndex('/social'), 1);
-    expect(shellTabIndex('/profile'), 2);
+    expect(shellTabIndex('/map'), 1);
+    expect(shellTabIndex('/social'), 2);
+    expect(shellTabIndex('/profile'), 3);
     expect(shellTabIndex('/log'), -1);
     expect(shellTabIndex('/shops/abc'), -1);
   });

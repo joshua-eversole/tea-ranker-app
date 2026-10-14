@@ -34,6 +34,7 @@ class TeaRepository extends ChangeNotifier {
   Future<void> _onSignedInBody() async {
     await ensureProfile();
     await seedToppingsIfMissing();
+    await seedShopsIfMissing();
     await refresh();
   }
 
@@ -79,6 +80,39 @@ class TeaRepository extends ChangeNotifier {
           'is_user_added': true,
         },
     ]);
+  }
+
+  Future<void> seedShopsIfMissing() async {
+    final uid = userId;
+    if (uid == null) return;
+    final rows = await _client.from('shops').select();
+    final existing = (rows as List)
+        .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final toInsert = shopsToSeedForUser(existing.map((s) => s.name));
+    if (toInsert.isEmpty) return;
+    final payload = [
+      for (final seed in toInsert)
+        {
+          'user_id': uid,
+          'name': seed.name,
+          'name_zh': seed.nameZh,
+          'is_user_added': false,
+        },
+    ];
+    try {
+      await _client.from('shops').insert(payload);
+    } catch (_) {
+      // Column `name_zh` may not exist until Joshua runs the SQL snippet.
+      await _client.from('shops').insert([
+        for (final seed in toInsert)
+          {
+            'user_id': uid,
+            'name': seed.name,
+            'is_user_added': false,
+          },
+      ]);
+    }
   }
 
   Future<void> refresh() async {
@@ -251,6 +285,8 @@ class TeaRepository extends ChangeNotifier {
     final shops = profile?.shops ?? const <ShopRow>[];
     for (final shop in shops) {
       if (shop.name.trim().toLowerCase() == needle) return shop;
+      final zh = shop.chineseName?.toLowerCase();
+      if (zh != null && zh == needle) return shop;
     }
     final inserted = await _client
         .from('shops')
@@ -335,6 +371,39 @@ class TeaRepository extends ChangeNotifier {
           {'drink_id': drinkId, 'topping_id': t.id},
       ]);
     }
+    await refresh();
+  }
+
+  Future<void> updateShopNames({
+    required String shopId,
+    required String name,
+    String? nameZh,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Shop name is empty');
+    }
+    final zh = nameZh?.trim();
+    final payload = <String, dynamic>{
+      'name': trimmed,
+      'name_zh': (zh == null || zh.isEmpty) ? null : zh,
+    };
+    try {
+      await _client.from('shops').update(payload).eq('id', shopId);
+    } catch (_) {
+      await _client.from('shops').update({'name': trimmed}).eq('id', shopId);
+    }
+    await refresh();
+  }
+
+  Future<void> updateShopNotes({
+    required String shopId,
+    required String? notes,
+  }) async {
+    final text = notes?.trim();
+    await _client.from('shops').update({
+      'notes': (text == null || text.isEmpty) ? null : text,
+    }).eq('id', shopId);
     await refresh();
   }
 

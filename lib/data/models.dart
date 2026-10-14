@@ -17,19 +17,51 @@ class ShopRow {
     required this.name,
     required this.userId,
     required this.isUserAdded,
+    this.nameZh,
+    this.notes,
   });
 
   final String id;
+  /// Primary display name (English).
   final String name;
+  /// Optional Chinese name (`shops.name_zh`).
+  final String? nameZh;
+  /// Shop-level notes (`shops.notes`), not drink notes.
+  final String? notes;
   final String? userId;
   final bool isUserAdded;
+
+  String? get chineseName {
+    final v = nameZh?.trim();
+    if (v == null || v.isEmpty) return null;
+    return v;
+  }
 
   factory ShopRow.fromMap(Map<String, dynamic> map) => ShopRow(
         id: map['id'] as String,
         name: map['name'] as String,
+        nameZh: map['name_zh'] as String?,
+        notes: map['notes'] as String?,
         userId: map['user_id'] as String?,
         isUserAdded: map['is_user_added'] as bool? ?? true,
       );
+
+  ShopRow copyWith({
+    String? name,
+    String? nameZh,
+    String? notes,
+    bool clearNameZh = false,
+    bool clearNotes = false,
+  }) {
+    return ShopRow(
+      id: id,
+      name: name ?? this.name,
+      nameZh: clearNameZh ? null : (nameZh ?? this.nameZh),
+      notes: clearNotes ? null : (notes ?? this.notes),
+      userId: userId,
+      isUserAdded: isUserAdded,
+    );
+  }
 }
 
 class ToppingRow {
@@ -202,6 +234,34 @@ const newUserToppingSeeds = <String>[
   'Cheese Foam',
 ];
 
+class ChainShopSeed {
+  const ChainShopSeed({required this.name, required this.nameZh});
+  final String name;
+  final String nameZh;
+}
+
+/// Well-known Taiwan chains for a true new user. English in `name`, Chinese in `name_zh`.
+const newUserShopSeeds = <ChainShopSeed>[
+  ChainShopSeed(name: '50 Lan', nameZh: '五十嵐'),
+  ChainShopSeed(name: 'Comebuy', nameZh: '清心福全'),
+  ChainShopSeed(name: 'Chun Shui Tang', nameZh: '春水堂'),
+  ChainShopSeed(name: 'TP Tea', nameZh: '茶湯會'),
+  ChainShopSeed(name: 'Milksha', nameZh: '迷客夏'),
+  ChainShopSeed(name: 'Kebuke', nameZh: '可不可熟成紅茶'),
+  ChainShopSeed(name: 'Macu', nameZh: '麻古茶坊'),
+  ChainShopSeed(name: 'WOOTEA', nameZh: '五桐號'),
+  ChainShopSeed(name: 'Tiger Sugar', nameZh: '老虎堂'),
+  ChainShopSeed(name: 'Yi Fang', nameZh: '一芳水果茶'),
+  ChainShopSeed(name: 'Dayungs', nameZh: '大苑子'),
+  ChainShopSeed(name: 'Presotea', nameZh: '鮮茶道'),
+  ChainShopSeed(name: 'Gong Cha', nameZh: '貢茶'),
+  ChainShopSeed(name: 'Chatime', nameZh: '日出茶太'),
+  ChainShopSeed(name: 'Sharetea', nameZh: '歇腳亭'),
+  ChainShopSeed(name: 'CoCo', nameZh: '都可'),
+  ChainShopSeed(name: 'Wanpo', nameZh: '萬波島嶼紅茶'),
+  ChainShopSeed(name: 'Truedan', nameZh: '珍煮丹'),
+];
+
 /// Seed the six default names only for a true new user (zero toppings).
 /// Users who already have a catalog — including Joshua’s 11 — get nothing.
 List<String> toppingsToSeedForUser(Iterable<String> existingNames) {
@@ -209,6 +269,15 @@ List<String> toppingsToSeedForUser(Iterable<String> existingNames) {
     return const [];
   }
   return List<String>.from(newUserToppingSeeds);
+}
+
+/// Seed bilingual chain shops only for a true new user (zero shops).
+/// Existing catalogs — including Joshua’s 18 — are left untouched.
+List<ChainShopSeed> shopsToSeedForUser(Iterable<String> existingNames) {
+  if (existingNames.any((name) => name.trim().isNotEmpty)) {
+    return const [];
+  }
+  return List<ChainShopSeed>.from(newUserShopSeeds);
 }
 
 String formatTwd(num price) {

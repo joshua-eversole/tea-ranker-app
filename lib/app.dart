@@ -9,6 +9,7 @@ import 'data/tea_repository.dart';
 import 'screens/drink_logger_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/map_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/shop_detail_screen.dart';
@@ -110,12 +111,31 @@ GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
         routes: [
           GoRoute(
             path: '/',
-            builder: (_, _) => HomeScreen(repo: repo),
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: HomeScreen(repo: repo),
+            ),
           ),
-          GoRoute(path: '/social', builder: (_, _) => const SocialScreen()),
+          GoRoute(
+            path: '/map',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const MapScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/social',
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SocialScreen(),
+            ),
+          ),
           GoRoute(
             path: '/profile',
-            builder: (_, _) => ProfileScreen(repo: repo),
+            pageBuilder: (_, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: ProfileScreen(repo: repo),
+            ),
           ),
           GoRoute(
             path: '/log',

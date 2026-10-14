@@ -37,7 +37,11 @@ abstract final class AppSurfaces {
 }
 
 abstract final class AppLayout {
-  static const maxContentWidth = 430.0;
+  /// At or below this width the cream column fills the viewport (phone PWA).
+  static const phoneFillBreakpoint = 700.0;
+
+  /// Cap on wide desktop only — large enough for modern phones, not a dashboard.
+  static const maxContentWidth = 480.0;
   static const addSlotSize = 64.0;
   static const addSlotOverhang = 12.0;
   static const barContentHeight = addSlotSize - addSlotOverhang; // 52
