@@ -7,6 +7,7 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
+import '../widgets/shop_name_field.dart';
 
 class DrinkLoggerScreen extends StatefulWidget {
   const DrinkLoggerScreen({super.key, required this.repo});
@@ -55,15 +56,6 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   }
 
   List<ToppingRow> get _catalog => widget.repo.toppings;
-
-  List<ShopRow> _shopMatches(List<ShopRow> shops) {
-    final q = _shop.text.trim().toLowerCase();
-    if (q.isEmpty) return const [];
-    return shops
-        .where((s) => s.name.toLowerCase().contains(q) && s.name.toLowerCase() != q)
-        .take(6)
-        .toList();
-  }
 
   Future<void> _pickDay() async {
     final picked = await showDatePicker(
@@ -176,33 +168,10 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                   ),
                   const SizedBox(height: 12),
                   _Section(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: _shop,
-                          onChanged: (_) => setState(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Shop',
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                          ),
-                        ),
-                        if (_shopMatches(shops).isNotEmpty)
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              for (final s in _shopMatches(shops))
-                                ActionChip(
-                                  label: Text(s.name),
-                                  onPressed: () =>
-                                      setState(() => _shop.text = s.name),
-                                ),
-                            ],
-                          ),
-                      ],
+                    child: ShopNameField(
+                      controller: _shop,
+                      shops: shops,
+                      onChanged: () => setState(() {}),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -232,7 +201,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
                         labelText: 'Price',
-                        suffixText: 'NT\$',
+                        prefixText: 'NT\$ ',
+                        hintText: '65',
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -379,10 +349,12 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                 ],
               ),
             ),
-            SafeArea(
-              top: false,
+            // Shell already pads for the nav + home indicator. Skip SafeArea
+            // so Save sits just above the bar while Add stays `watching`.
+            Material(
+              color: AppColors.cream,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: SizedBox(
                   width: double.infinity,
                   height: AppLayout.minTap,
@@ -445,9 +417,11 @@ class _GradeSegments extends StatelessWidget {
                       child: Text(
                         g.letter,
                         style: TextStyle(
+                          fontFamily: 'Nunito',
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
                           color: colorsForMark(g.letter).$2,
+                          height: 1,
                         ),
                       ),
                     ),

@@ -29,7 +29,7 @@ class GradeCircle extends StatelessWidget {
         style: TextStyle(
           fontFamily: 'Nunito',
           fontWeight: FontWeight.w800,
-          fontSize: size * 0.38,
+          fontSize: mark.length > 1 ? size * 0.32 : size * 0.42,
           color: colors.$2,
           height: 1,
         ),
