@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config.dart';
 import '../theme/tokens.dart';
 import '../widgets/phone_frame.dart';
 
@@ -44,6 +45,7 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _email.text.trim(),
         password: _password.text,
         data: {'username': username},
+        emailRedirectTo: AppConfig.emailRedirectTo,
       );
       if (Supabase.instance.client.auth.currentSession != null) {
         await Supabase.instance.client.auth.signOut();
