@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../grading/grade.dart';
 import 'models.dart';
+import 'taste_stats.dart';
 
 class TeaRepository extends ChangeNotifier {
   TeaRepository(this._client);
@@ -177,7 +178,7 @@ class TeaRepository extends ChangeNotifier {
         account = ProfileRow.fromMap(profileRow);
       }
 
-      profile = _buildTasteProfile(entries, shops);
+      profile = buildTasteProfile(entries, shops);
       loading = false;
       notifyListeners();
     } catch (e) {
@@ -185,83 +186,6 @@ class TeaRepository extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
-  }
-
-  TasteProfile _buildTasteProfile(
-    List<DrinkEntryRow> entries,
-    List<ShopRow> shops,
-  ) {
-    int? avgSugar;
-    String? favoriteBase;
-    if (entries.isNotEmpty) {
-      final sugarMean =
-          entries.map((e) => e.sugarLevel).reduce((a, b) => a + b) /
-              entries.length;
-      avgSugar = sugarMean.round();
-
-      final counts = <String, int>{};
-      for (final e in entries) {
-        counts[e.drinkType] = (counts[e.drinkType] ?? 0) + 1;
-      }
-      var bestCount = 0;
-      for (final e in entries) {
-        final c = counts[e.drinkType] ?? 0;
-        if (c > bestCount) {
-          bestCount = c;
-          favoriteBase = e.drinkType;
-        }
-      }
-      // Tie: most recent (entries already sorted by logged_at desc).
-    }
-
-    final byShop = <String, List<DrinkEntryRow>>{};
-    for (final e in entries) {
-      byShop.putIfAbsent(e.shopId, () => []).add(e);
-    }
-
-    final shopById = {for (final s in shops) s.id: s};
-    final feed = <ShopFeedItem>[];
-    for (final entry in byShop.entries) {
-      final list = entry.value;
-      final shop = shopById[entry.key] ?? list.first.shop;
-      if (shop == null) continue;
-      final grades = list
-          .map((e) => e.grade ?? e.letter?.points)
-          .whereType<int>()
-          .toList();
-      if (grades.isEmpty) continue;
-      final avg = grades.reduce((a, b) => a + b) / grades.length;
-      list.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
-      feed.add(
-        ShopFeedItem(
-          shop: shop,
-          visitCount: list.length,
-          averageGrade: avg,
-          lastLoggedAt: list.first.loggedAt,
-        ),
-      );
-    }
-    feed.sort((a, b) => b.lastLoggedAt.compareTo(a.lastLoggedAt));
-
-    ShopFeedItem? highest;
-    if (feed.isNotEmpty) {
-      highest = feed.first;
-      for (final item in feed) {
-        if (item.averageGrade > highest!.averageGrade) {
-          highest = item;
-        }
-        // TODO: spec does not define a tie-break when two shops share avg(grade).
-      }
-    }
-
-    return TasteProfile(
-      entries: entries,
-      shops: shops,
-      averageSugarPercent: avgSugar,
-      favoriteBase: favoriteBase,
-      highestRatedShop: highest,
-      shopFeed: feed,
-    );
   }
 
   List<DrinkEntryRow> drinksForShop(String shopId) {

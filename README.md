@@ -1,6 +1,6 @@
 # Tea Ranker
 
-A personal Pokédex for boba and tea. Log each drink (sugar, ice, toppings, letter grade) and see taste insights grouped by shop.
+A personal Pokédex for boba and tea. Log each drink (sugar, ice, toppings, letter grade) and see taste insights grouped by shop. Taste Profile lives on the Profile tab; **More taste details** opens extra stats in a sheet.
 
 V1 ships as a Flutter **PWA** (web first). Social is a coming-soon tab. The diary is per-user in Supabase.
 

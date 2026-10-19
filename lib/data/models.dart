@@ -256,6 +256,20 @@ class ShopFeedItem {
   AggregateBand? get band => bandForAverage(averageGrade);
 }
 
+class FavoriteShopForBase {
+  const FavoriteShopForBase({
+    required this.drinkType,
+    required this.shop,
+    required this.averageGrade,
+  });
+
+  final String drinkType;
+  final ShopRow shop;
+  final double averageGrade;
+
+  AggregateBand? get band => bandForAverage(averageGrade);
+}
+
 class TasteProfile {
   const TasteProfile({
     required this.entries,
@@ -264,6 +278,12 @@ class TasteProfile {
     required this.favoriteBase,
     required this.highestRatedShop,
     required this.shopFeed,
+    this.averageIcePercent,
+    this.mostVisitedShop,
+    this.favoriteShopsByBase = const [],
+    this.averagePrice,
+    this.favoriteTopping,
+    this.daysSinceLastDrink,
   });
 
   final List<DrinkEntryRow> entries;
@@ -272,6 +292,14 @@ class TasteProfile {
   final String? favoriteBase;
   final ShopFeedItem? highestRatedShop;
   final List<ShopFeedItem> shopFeed;
+  final int? averageIcePercent;
+  final ShopFeedItem? mostVisitedShop;
+  final List<FavoriteShopForBase> favoriteShopsByBase;
+  final double? averagePrice;
+  final String? favoriteTopping;
+  final int? daysSinceLastDrink;
+
+  bool get isEmpty => entries.isEmpty;
 }
 
 const drinkBases = <String>[

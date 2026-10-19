@@ -55,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (data != null && data.entries.isNotEmpty) ...[
+              if (data != null) ...[
                 const SizedBox(height: 24),
                 Text(
                   'Taste Profile',
