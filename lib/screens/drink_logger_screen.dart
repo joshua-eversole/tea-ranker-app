@@ -17,11 +17,7 @@ String drinkLoggerTitle({required bool editing}) =>
     editing ? 'Edit drink' : 'Log a drink';
 
 class DrinkLoggerScreen extends StatefulWidget {
-  const DrinkLoggerScreen({
-    super.key,
-    required this.repo,
-    this.entryId,
-  });
+  const DrinkLoggerScreen({super.key, required this.repo, this.entryId});
 
   final TeaRepository repo;
   final String? entryId;
@@ -110,7 +106,11 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
         ? entry.price.round().toString()
         : entry.price.toString();
     _notes.text = entry.notes ?? '';
-    _day = DateTime(entry.loggedAt.year, entry.loggedAt.month, entry.loggedAt.day);
+    _day = DateTime(
+      entry.loggedAt.year,
+      entry.loggedAt.month,
+      entry.loggedAt.day,
+    );
     _base = drinkBases.contains(entry.drinkType) ? entry.drinkType : null;
     _sugar = snapPercent(entry.sugarLevel).toDouble();
     _ice = snapPercent(entry.iceLevel).toDouble();
@@ -197,7 +197,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     try {
       final row = await widget.repo.matchOrCreateTopping(
         name,
-        colorHex: picked,
+        colorHex: picked.colorHex,
+        colorIntensity: picked.intensity,
       );
       setState(() {
         _selected.add(row.id);
@@ -215,7 +216,9 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
       _banner = null;
     });
     try {
-      final selectedRows = _catalog.where((t) => _selected.contains(t.id)).toList();
+      final selectedRows = _catalog
+          .where((t) => _selected.contains(t.id))
+          .toList();
       if (widget.isEditing) {
         final shopId = await widget.repo.updateDrink(
           drinkId: widget.entryId!,
@@ -249,7 +252,10 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
         context.go('/');
       }
     } catch (e) {
-      setState(() => _banner = 'Couldn’t save this drink. Check the form and try again.');
+      setState(
+        () =>
+            _banner = 'Couldn’t save this drink. Check the form and try again.',
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -587,7 +593,9 @@ class _GradeSegments extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: selected == g ? AppColors.boba : Colors.transparent,
+                      color: selected == g
+                          ? AppColors.boba
+                          : Colors.transparent,
                       width: 3,
                     ),
                   ),

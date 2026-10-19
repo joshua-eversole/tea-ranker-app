@@ -9,6 +9,7 @@ class ToppingChip extends StatelessWidget {
     super.key,
     required this.label,
     this.colorHex,
+    this.intensity,
     this.selected = false,
     this.compact = false,
     this.onTap,
@@ -23,6 +24,7 @@ class ToppingChip extends StatelessWidget {
     return ToppingChip(
       label: topping.name,
       colorHex: topping.colorHex,
+      intensity: topping.colorIntensity,
       selected: selected,
       compact: compact,
       onTap: onTap,
@@ -31,13 +33,14 @@ class ToppingChip extends StatelessWidget {
 
   final String label;
   final String? colorHex;
+  final int? intensity;
   final bool selected;
   final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final fill = colorFromHex(colorHex);
+    final fill = toppingFill(colorHex: colorHex, intensity: intensity);
     final onFill = toppingLabelColor(fill);
     final pad = compact
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 4)
@@ -48,7 +51,7 @@ class ToppingChip extends StatelessWidget {
       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
     );
 
-    final child = AnimatedContainer(
+    final pill = AnimatedContainer(
       duration: const Duration(milliseconds: 120),
       padding: pad,
       decoration: ShapeDecoration(
@@ -71,17 +74,32 @@ class ToppingChip extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return child;
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppLayout.minTap),
-          child: Center(child: child),
-        ),
-      ),
+    // Shrink-wrap so Wrap can put several chips on one row. Do not expand
+    // to the Wrap's max width (Center / loose Align would stack one per line).
+    final sized = onTap == null
+        ? pill
+        : Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const StadiumBorder(),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: AppLayout.minTap),
+                child: Align(
+                  alignment: Alignment.center,
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: pill,
+                ),
+              ),
+            ),
+          );
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: sized,
     );
   }
 }

@@ -6,12 +6,8 @@ import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/widgets/app_shell.dart';
 import 'package:tea_ranker/widgets/shop_name_field.dart';
 
-ShopRow shop(String id, String name) => ShopRow(
-      id: id,
-      name: name,
-      userId: 'u',
-      isUserAdded: true,
-    );
+ShopRow shop(String id, String name) =>
+    ShopRow(id: id, name: name, userId: 'u', isUserAdded: true);
 
 void main() {
   test('formatTwd uses NT\$ prefix', () {
@@ -61,5 +57,10 @@ void main() {
       gradeWash(null),
       Color.lerp(AppColors.cream, AppColors.seed, kGradeWashMix),
     );
+  });
+
+  test('shop page wash is the same mix as grade-wash cards', () {
+    expect(shopPageWash(AggregateBand.s), gradeWash('S'));
+    expect(shopPageWash(AggregateBand.bMinus), gradeWash('B−'));
   });
 }

@@ -18,13 +18,15 @@ class ProfileRow {
   final int defaultIcePercent;
 
   factory ProfileRow.fromMap(Map<String, dynamic> map) => ProfileRow(
-        id: map['id'] as String,
-        username: (map['username'] as String?) ?? '',
-        defaultSugarPercent:
-            snapPercent((map['default_sugar_percent'] as num?)?.toInt() ?? 50),
-        defaultIcePercent:
-            snapPercent((map['default_ice_percent'] as num?)?.toInt() ?? 50),
-      );
+    id: map['id'] as String,
+    username: (map['username'] as String?) ?? '',
+    defaultSugarPercent: snapPercent(
+      (map['default_sugar_percent'] as num?)?.toInt() ?? 50,
+    ),
+    defaultIcePercent: snapPercent(
+      (map['default_ice_percent'] as num?)?.toInt() ?? 50,
+    ),
+  );
 }
 
 final _latin = RegExp(r'[A-Za-z]');
@@ -54,10 +56,13 @@ class ShopRow {
   });
 
   final String id;
+
   /// English name (`shops.name`). Null when the shop is Chinese-only.
   final String? name;
+
   /// Optional Chinese name (`shops.name_zh`).
   final String? nameZh;
+
   /// Shop-level notes (`shops.notes`), not drink notes.
   final String? notes;
   final String? userId;
@@ -85,13 +90,13 @@ class ShopRow {
   }
 
   factory ShopRow.fromMap(Map<String, dynamic> map) => ShopRow(
-        id: map['id'] as String,
-        name: map['name'] as String?,
-        nameZh: map['name_zh'] as String?,
-        notes: map['notes'] as String?,
-        userId: map['user_id'] as String?,
-        isUserAdded: map['is_user_added'] as bool? ?? true,
-      );
+    id: map['id'] as String,
+    name: map['name'] as String?,
+    nameZh: map['name_zh'] as String?,
+    notes: map['notes'] as String?,
+    userId: map['user_id'] as String?,
+    isUserAdded: map['is_user_added'] as bool? ?? true,
+  );
 
   ShopRow copyWith({
     String? name,
@@ -127,30 +132,37 @@ class ToppingRow {
     required this.userId,
     required this.isUserAdded,
     this.colorHex,
+    this.colorIntensity,
   });
 
   final String id;
   final String name;
   final String? userId;
   final bool isUserAdded;
+
   /// Chip fill `#RRGGBB`. Null until the SQL snippet is applied / row is colored.
   final String? colorHex;
 
-  factory ToppingRow.fromMap(Map<String, dynamic> map) => ToppingRow(
-        id: map['id'] as String,
-        name: map['name'] as String,
-        userId: map['user_id'] as String?,
-        isUserAdded: map['is_user_added'] as bool? ?? true,
-        colorHex: map['color_hex'] as String?,
-      );
+  /// 0–100. Null until `color_intensity` is migrated; treat as 100.
+  final int? colorIntensity;
 
-  ToppingRow copyWith({String? colorHex}) {
+  factory ToppingRow.fromMap(Map<String, dynamic> map) => ToppingRow(
+    id: map['id'] as String,
+    name: map['name'] as String,
+    userId: map['user_id'] as String?,
+    isUserAdded: map['is_user_added'] as bool? ?? true,
+    colorHex: map['color_hex'] as String?,
+    colorIntensity: (map['color_intensity'] as num?)?.toInt(),
+  );
+
+  ToppingRow copyWith({String? colorHex, int? colorIntensity}) {
     return ToppingRow(
       id: id,
       name: name,
       userId: userId,
       isUserAdded: isUserAdded,
       colorHex: colorHex ?? this.colorHex,
+      colorIntensity: colorIntensity ?? this.colorIntensity,
     );
   }
 }
@@ -231,10 +243,7 @@ class DrinkEntryRow {
     );
   }
 
-  DrinkEntryRow withRelations({
-    ShopRow? shop,
-    List<ToppingRow>? toppings,
-  }) {
+  DrinkEntryRow withRelations({ShopRow? shop, List<ToppingRow>? toppings}) {
     return DrinkEntryRow(
       id: id,
       userId: userId,
@@ -298,6 +307,7 @@ class TasteProfile {
     this.averagePrice,
     this.favoriteTopping,
     this.favoriteToppingColorHex,
+    this.favoriteToppingIntensity,
     this.daysSinceLastDrink,
   });
 
@@ -313,17 +323,13 @@ class TasteProfile {
   final double? averagePrice;
   final String? favoriteTopping;
   final String? favoriteToppingColorHex;
+  final int? favoriteToppingIntensity;
   final int? daysSinceLastDrink;
 
   bool get isEmpty => entries.isEmpty;
 }
 
-const drinkBases = <String>[
-  'Milk-based',
-  'Tea-based',
-  'Fruit-based',
-  'Other',
-];
+const drinkBases = <String>['Milk-based', 'Tea-based', 'Fruit-based', 'Other'];
 
 const newUserToppingSeeds = <String>[
   'Boba',

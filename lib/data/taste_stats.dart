@@ -11,11 +11,7 @@ const kNoDrinksYetCopy = 'No drinks yet';
 const kCloseTasteDetailsTooltip = 'Close';
 
 /// Bases that get a “favorite shop” row. Skip any the user has never logged.
-const kTasteDetailBases = <String>[
-  'Tea-based',
-  'Milk-based',
-  'Fruit-based',
-];
+const kTasteDetailBases = <String>['Tea-based', 'Milk-based', 'Fruit-based'];
 
 int calendarDaysBetween(DateTime from, DateTime to) {
   final a = DateTime(from.year, from.month, from.day);
@@ -58,18 +54,18 @@ TasteProfile buildTasteProfile(
   String? favoriteBase;
   String? favoriteTopping;
   String? favoriteToppingColorHex;
+  int? favoriteToppingIntensity;
   int? daysSince;
   if (sorted.isNotEmpty) {
     avgSugar = _meanInt(sorted.map((e) => e.sugarLevel));
     avgIce = _meanInt(sorted.map((e) => e.iceLevel));
-    avgPrice = sorted.map((e) => e.price).reduce((a, b) => a + b) / sorted.length;
-    favoriteBase = _favoriteByCount(
-      sorted,
-      keyOf: (e) => e.drinkType,
-    );
+    avgPrice =
+        sorted.map((e) => e.price).reduce((a, b) => a + b) / sorted.length;
+    favoriteBase = _favoriteByCount(sorted, keyOf: (e) => e.drinkType);
     final favTop = _favoriteTopping(sorted);
     favoriteTopping = favTop?.name;
     favoriteToppingColorHex = favTop?.colorHex;
+    favoriteToppingIntensity = favTop?.colorIntensity;
     daysSince = calendarDaysBetween(sorted.first.loggedAt, clock);
     if (daysSince < 0) daysSince = 0;
   }
@@ -142,6 +138,7 @@ TasteProfile buildTasteProfile(
     averagePrice: avgPrice,
     favoriteTopping: favoriteTopping,
     favoriteToppingColorHex: favoriteToppingColorHex,
+    favoriteToppingIntensity: favoriteToppingIntensity,
     daysSinceLastDrink: daysSince,
   );
 }

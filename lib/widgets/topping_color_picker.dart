@@ -5,13 +5,21 @@ import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
 import 'topping_chip.dart';
 
-Future<String?> showToppingColorPicker({
+class ToppingColorChoice {
+  const ToppingColorChoice({required this.colorHex, required this.intensity});
+
+  final String colorHex;
+  final int intensity;
+}
+
+Future<ToppingColorChoice?> showToppingColorPicker({
   required BuildContext context,
   required String toppingName,
   required String initialHex,
+  int initialIntensity = kToppingDefaultIntensity,
   String confirmLabel = 'Save',
 }) {
-  return showModalBottomSheet<String>(
+  return showModalBottomSheet<ToppingColorChoice>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.cream,
@@ -26,6 +34,7 @@ Future<String?> showToppingColorPicker({
         child: ToppingColorPicker(
           toppingName: toppingName,
           initialHex: initialHex,
+          initialIntensity: initialIntensity,
           confirmLabel: confirmLabel,
         ),
       );
@@ -38,11 +47,13 @@ class ToppingColorPicker extends StatefulWidget {
     super.key,
     required this.toppingName,
     required this.initialHex,
+    this.initialIntensity = kToppingDefaultIntensity,
     this.confirmLabel = 'Save',
   });
 
   final String toppingName;
   final String initialHex;
+  final int initialIntensity;
   final String confirmLabel;
 
   @override
@@ -51,12 +62,14 @@ class ToppingColorPicker extends StatefulWidget {
 
 class _ToppingColorPickerState extends State<ToppingColorPicker> {
   late Color _color;
+  late int _intensity;
   late TextEditingController _hex;
 
   @override
   void initState() {
     super.initState();
     _color = colorFromHex(widget.initialHex);
+    _intensity = snapIntensity(widget.initialIntensity);
     _hex = TextEditingController(text: hexFromColor(_color));
   }
 
@@ -79,11 +92,15 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
     _setColor(colorFromHex(normalized), syncHex: false);
   }
 
+  Color get _previewFill =>
+      toppingFill(colorHex: hexFromColor(_color), intensity: _intensity);
+
   @override
   Widget build(BuildContext context) {
     final r = (_color.r * 255).round();
     final g = (_color.g * 255).round();
     final b = (_color.b * 255).round();
+    final preview = _previewFill;
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -113,12 +130,13 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
                     ? 'Preview'
                     : widget.toppingName,
                 colorHex: hexFromColor(_color),
+                intensity: _intensity,
               ),
             ),
             const SizedBox(height: 8),
             Center(
               child: Text(
-                toppingFillNeedsWhiteLabel(_color)
+                toppingFillNeedsWhiteLabel(preview)
                     ? 'White label — fill is too dark for brown text'
                     : 'Brown label — contrast is at least 4.5:1',
                 style: const TextStyle(
@@ -146,6 +164,33 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
               ],
             ),
             const SizedBox(height: 16),
+            const Text(
+              'Intensity',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    label: 'Intensity',
+                    value: '$_intensity%',
+                    child: Slider(
+                      min: 0,
+                      max: 100,
+                      divisions: 100,
+                      value: _intensity.toDouble(),
+                      label: '$_intensity%',
+                      onChanged: (v) => setState(() => _intensity = v.round()),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text('$_intensity%', textAlign: TextAlign.end),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             const Text(
               'Custom RGB',
               style: TextStyle(fontWeight: FontWeight.w600),
@@ -190,8 +235,13 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
                 ),
                 const Spacer(),
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(context, hexFromColor(_color)),
+                  onPressed: () => Navigator.pop(
+                    context,
+                    ToppingColorChoice(
+                      colorHex: hexFromColor(_color),
+                      intensity: _intensity,
+                    ),
+                  ),
                   child: Text(widget.confirmLabel),
                 ),
               ],
@@ -259,7 +309,10 @@ class _ChannelSlider extends StatelessWidget {
       children: [
         SizedBox(
           width: 16,
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
         Expanded(
           child: Slider(
@@ -271,10 +324,7 @@ class _ChannelSlider extends StatelessWidget {
             onChanged: (v) => onChanged(v.round()),
           ),
         ),
-        SizedBox(
-          width: 32,
-          child: Text('$value', textAlign: TextAlign.end),
-        ),
+        SizedBox(width: 32, child: Text('$value', textAlign: TextAlign.end)),
       ],
     );
   }

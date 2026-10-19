@@ -19,9 +19,7 @@ Future<void> showTasteDetailsSheet({
     backgroundColor: AppColors.cream,
     barrierColor: AppColors.boba.withValues(alpha: 0.35),
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadii.card),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.card)),
     ),
     builder: (context) => TasteDetailsSheet(data: data),
   );
@@ -83,18 +81,16 @@ class TasteDetailsSheet extends StatelessWidget {
                         ? null
                         : ShopNameText(
                             shop: data.mostVisitedShop!.shop,
-                            nameStyle:
-                                const TextStyle(fontWeight: FontWeight.w600),
+                            nameStyle: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                   ),
                   for (final row in data.favoriteShopsByBase)
                     _DetailRow(
                       label: favoriteShopLabelForBase(row.drinkType),
                       value: row.shop.displayName,
-                      trailing: GradeOrDash(
-                        band: row.band,
-                        size: 36,
-                      ),
+                      trailing: GradeOrDash(band: row.band, size: 36),
                       valueWidget: ShopNameText(
                         shop: row.shop,
                         nameStyle: const TextStyle(
@@ -115,6 +111,7 @@ class TasteDetailsSheet extends StatelessWidget {
                         : ToppingChip(
                             label: data.favoriteTopping!,
                             colorHex: data.favoriteToppingColorHex,
+                            intensity: data.favoriteToppingIntensity,
                             compact: true,
                           ),
                   ),
@@ -174,10 +171,7 @@ class _DetailRow extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 12),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 12), trailing!],
         ],
       ),
     );
