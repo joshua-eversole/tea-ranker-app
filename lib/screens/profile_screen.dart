@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
+import '../theme/topping_colors.dart';
 import '../widgets/percent_slider.dart';
 import '../widgets/taste_stats_card.dart';
+import '../widgets/topping_chip.dart';
+import '../widgets/topping_color_picker.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -78,6 +82,13 @@ class ProfileScreen extends StatelessWidget {
                 sugar: repo.account?.defaultSugarPercent ?? 50,
                 ice: repo.account?.defaultIcePercent ?? 50,
               ),
+              const SizedBox(height: 24),
+              Text(
+                'Topping colors',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _ToppingColorSettings(repo: repo),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () async {
@@ -177,6 +188,68 @@ class _DefaultSlidersState extends State<_DefaultSliders> {
             ),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: AppColors.gradeD)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToppingColorSettings extends StatelessWidget {
+  const _ToppingColorSettings({required this.repo});
+
+  final TeaRepository repo;
+
+  Future<void> _edit(BuildContext context, ToppingRow topping) async {
+    final picked = await showToppingColorPicker(
+      context: context,
+      toppingName: topping.name,
+      initialHex: normalizeColorHex(topping.colorHex),
+    );
+    if (picked == null) return;
+    try {
+      await repo.updateToppingColor(toppingId: topping.id, colorHex: picked);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Couldn’t save that color. Paste supabase/toppings_color_hex.sql in the Supabase SQL editor.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final toppings = repo.toppings;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Tap a chip to change its background. The same fill shows on the logger and visit cards.',
+              style: TextStyle(color: AppColors.chocolate),
+            ),
+            const SizedBox(height: 12),
+            if (toppings.isEmpty)
+              const Text('No toppings yet. Add one when you log a drink.')
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final t in toppings)
+                    ToppingChip.fromRow(
+                      t,
+                      onTap: () => _edit(context, t),
+                    ),
+                ],
+              ),
           ],
         ),
       ),

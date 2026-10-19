@@ -99,3 +99,7 @@ Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on 
 Paste [`supabase/zh_only_shops_and_profile_defaults.sql`](supabase/zh_only_shops_and_profile_defaults.sql) in the Supabase SQL editor (project owner). It is additive: nullable English `shops.name`, unique `(user_id, name)` and `(user_id, name_zh)` partial indexes, plus `profiles.default_sugar_percent` / `default_ice_percent`. It does not rewrite Joshua’s rows. RLS stays owner-only. Do not use `service_role`.
 
 The earlier [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_notes.sql) snippet is still safe if you already ran it (`IF NOT EXISTS`).
+
+## Topping chip colors SQL (Supabase)
+
+Paste [`supabase/toppings_color_hex.sql`](supabase/toppings_color_hex.sql) in the SQL editor (project owner). Additive `toppings.color_hex` (`#RRGGBB`), owner-only RLS unchanged, no `service_role`. Sets fills for Joshua’s 11 names and the new-user seed names when those rows exist; does not delete catalog rows. Custom colors already stored are left alone on re-run.

@@ -57,6 +57,7 @@ TasteProfile buildTasteProfile(
   double? avgPrice;
   String? favoriteBase;
   String? favoriteTopping;
+  String? favoriteToppingColorHex;
   int? daysSince;
   if (sorted.isNotEmpty) {
     avgSugar = _meanInt(sorted.map((e) => e.sugarLevel));
@@ -66,7 +67,9 @@ TasteProfile buildTasteProfile(
       sorted,
       keyOf: (e) => e.drinkType,
     );
-    favoriteTopping = _favoriteTopping(sorted);
+    final favTop = _favoriteTopping(sorted);
+    favoriteTopping = favTop?.name;
+    favoriteToppingColorHex = favTop?.colorHex;
     daysSince = calendarDaysBetween(sorted.first.loggedAt, clock);
     if (daysSince < 0) daysSince = 0;
   }
@@ -138,6 +141,7 @@ TasteProfile buildTasteProfile(
     favoriteShopsByBase: favoriteShopsByBase,
     averagePrice: avgPrice,
     favoriteTopping: favoriteTopping,
+    favoriteToppingColorHex: favoriteToppingColorHex,
     daysSinceLastDrink: daysSince,
   );
 }
@@ -170,7 +174,7 @@ String? _favoriteByCount(
   return favorite;
 }
 
-String? _favoriteTopping(List<DrinkEntryRow> recencyDesc) {
+ToppingRow? _favoriteTopping(List<DrinkEntryRow> recencyDesc) {
   final counts = <String, int>{};
   for (final e in recencyDesc) {
     for (final t in e.toppings) {
@@ -184,7 +188,7 @@ String? _favoriteTopping(List<DrinkEntryRow> recencyDesc) {
   }
   for (final e in recencyDesc) {
     for (final t in e.toppings) {
-      if ((counts[t.name] ?? 0) == bestCount) return t.name;
+      if ((counts[t.name] ?? 0) == bestCount) return t;
     }
   }
   return null;

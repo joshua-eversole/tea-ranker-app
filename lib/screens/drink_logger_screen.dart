@@ -7,8 +7,11 @@ import '../data/models.dart';
 import '../data/tea_repository.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
+import '../theme/topping_colors.dart';
 import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
+import '../widgets/topping_chip.dart';
+import '../widgets/topping_color_picker.dart';
 
 String drinkLoggerTitle({required bool editing}) =>
     editing ? 'Edit drink' : 'Log a drink';
@@ -170,8 +173,32 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   Future<void> _addTopping() async {
     final name = _newTopping.text.trim();
     if (name.isEmpty) return;
+    final needle = name.toLowerCase();
+    for (final t in _catalog) {
+      if (t.name.trim().toLowerCase() == needle) {
+        setState(() {
+          _selected.add(t.id);
+          _newTopping.clear();
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    final picked = await showToppingColorPicker(
+      context: context,
+      toppingName: name,
+      initialHex: colorHexForNewTopping(
+        name,
+        existingHexes: _catalog.map((t) => t.colorHex),
+      ),
+      confirmLabel: 'Add',
+    );
+    if (picked == null || !mounted) return;
     try {
-      final row = await widget.repo.matchOrCreateTopping(name);
+      final row = await widget.repo.matchOrCreateTopping(
+        name,
+        colorHex: picked,
+      );
       setState(() {
         _selected.add(row.id);
         _newTopping.clear();
@@ -427,26 +454,18 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                           runSpacing: 8,
                           children: [
                             for (final t in _catalog)
-                              FilterChip(
-                                label: Text(t.name),
+                              ToppingChip.fromRow(
+                                t,
                                 selected: _selected.contains(t.id),
-                                onSelected: (on) {
+                                onTap: () {
                                   setState(() {
-                                    if (on) {
-                                      _selected.add(t.id);
-                                    } else {
+                                    if (_selected.contains(t.id)) {
                                       _selected.remove(t.id);
+                                    } else {
+                                      _selected.add(t.id);
                                     }
                                   });
                                 },
-                                selectedColor: AppColors.boba,
-                                checkmarkColor: Colors.white,
-                                labelStyle: TextStyle(
-                                  color: _selected.contains(t.id)
-                                      ? Colors.white
-                                      : AppColors.boba,
-                                ),
-                                backgroundColor: AppColors.seed,
                               ),
                           ],
                         ),
