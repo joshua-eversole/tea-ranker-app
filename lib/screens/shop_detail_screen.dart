@@ -10,6 +10,32 @@ import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
 import 'home_screen.dart';
 
+const kDeleteVisitConfirmMessage = 'Are you sure you want to delete this?';
+
+Future<bool> confirmDeleteVisit(BuildContext context) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: AppColors.cream,
+        title: const Text('Delete visit'),
+        content: const Text(kDeleteVisitConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+  return result == true;
+}
+
 enum ShopDetailPhase { loading, error, empty, ready }
 
 /// Pop Home only after a successful load that shows this shop has zero drinks.
@@ -146,6 +172,23 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
     }
   }
 
+  Future<void> _editVisit(DrinkEntryRow drink) async {
+    await context.push('/log/${drink.id}');
+  }
+
+  Future<void> _deleteVisit(DrinkEntryRow drink) async {
+    final ok = await confirmDeleteVisit(context);
+    if (!ok || !mounted) return;
+    try {
+      await widget.repo.deleteDrink(drink.id);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Couldn’t delete that visit.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -241,7 +284,11 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                         children: [
                           for (final drink in drinks) ...[
-                            _DrinkCard(drink: drink),
+                            DrinkVisitCard(
+                              drink: drink,
+                              onEdit: () => _editVisit(drink),
+                              onDelete: () => _deleteVisit(drink),
+                            ),
                             const SizedBox(height: 10),
                           ],
                         ],
@@ -341,9 +388,17 @@ class _ShopNotesTab extends StatelessWidget {
   }
 }
 
-class _DrinkCard extends StatelessWidget {
-  const _DrinkCard({required this.drink});
+class DrinkVisitCard extends StatelessWidget {
+  const DrinkVisitCard({
+    super.key,
+    required this.drink,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
   final DrinkEntryRow drink;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +407,7 @@ class _DrinkCard extends StatelessWidget {
     return GradeWashSurface(
       mark: drink.letter?.letter,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 4, 16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -409,6 +464,23 @@ class _DrinkCard extends StatelessWidget {
                     ),
                   ],
                 ],
+              ),
+            ),
+            SizedBox(
+              width: AppLayout.minTap,
+              height: AppLayout.minTap,
+              child: PopupMenuButton<String>(
+                tooltip: 'Edit or delete this visit',
+                padding: EdgeInsets.zero,
+                onSelected: (value) {
+                  if (value == 'edit') onEdit();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+                icon: const Icon(Icons.more_vert),
               ),
             ),
           ],

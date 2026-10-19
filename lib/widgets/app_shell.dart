@@ -29,7 +29,7 @@ class AppShell extends StatelessWidget {
   int get _tabIndex => shellTabIndex(location);
 
   AddSlotState get _slotState {
-    if (location == '/log' || location.startsWith('/log')) {
+    if (location == '/log' || location.startsWith('/log/')) {
       return AddSlotState.watching;
     }
     return AddSlotState.idle;
@@ -100,7 +100,7 @@ class AppShell extends StatelessWidget {
               child: AddDrinkSlot(
                 state: _slotState,
                 onPressed: () {
-                  if (location != '/log') {
+                  if (location != '/log' && !location.startsWith('/log/')) {
                     context.push('/log');
                   }
                 },

@@ -365,22 +365,22 @@ class TeaRepository extends ChangeNotifier {
       throw StateError('Not signed in');
     }
     final shop = await matchOrCreateShop(shopName);
-    final loggedAt = DateTime(localDay.year, localDay.month, localDay.day, 12);
     final entry = await _client
         .from('drink_entries')
         .insert({
           'user_id': uid,
-          'shop_id': shop.id,
-          'tea_name': teaName.trim(),
-          'drink_type': drinkType,
-          'sugar_level': sugarLevel,
-          'ice_level': iceLevel,
-          'price': price,
-          'grade': grade.points,
-          'overall_grade': grade.letter,
-          'notes': (notes == null || notes.trim().isEmpty) ? null : notes.trim(),
           'photo_url': null,
-          'logged_at': loggedAt.toUtc().toIso8601String(),
+          ...drinkEntryWritePayload(
+            shopId: shop.id,
+            teaName: teaName,
+            drinkType: drinkType,
+            sugarLevel: sugarLevel,
+            iceLevel: iceLevel,
+            price: price,
+            grade: grade,
+            notes: notes,
+            localDay: localDay,
+          ),
         })
         .select()
         .single();
@@ -391,6 +391,67 @@ class TeaRepository extends ChangeNotifier {
           {'drink_id': drinkId, 'topping_id': t.id},
       ]);
     }
+    await refresh();
+  }
+
+  /// Updates one owned visit. Never inserts a second `drink_entries` row.
+  Future<String> updateDrink({
+    required String drinkId,
+    required DateTime localDay,
+    required String shopName,
+    required String teaName,
+    required double price,
+    required String drinkType,
+    required int sugarLevel,
+    required int iceLevel,
+    required List<ToppingRow> selectedToppings,
+    required LetterGrade grade,
+    required String? notes,
+  }) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final shop = await matchOrCreateShop(shopName);
+    await _client
+        .from('drink_entries')
+        .update(
+          drinkEntryWritePayload(
+            shopId: shop.id,
+            teaName: teaName,
+            drinkType: drinkType,
+            sugarLevel: sugarLevel,
+            iceLevel: iceLevel,
+            price: price,
+            grade: grade,
+            notes: notes,
+            localDay: localDay,
+          ),
+        )
+        .eq('id', drinkId)
+        .eq('user_id', uid);
+    await replaceDrinkToppings(
+      client: _client,
+      drinkId: drinkId,
+      selectedToppings: selectedToppings,
+    );
+    await refresh();
+    return shop.id;
+  }
+
+  /// Deletes join rows first (in case the FK is not CASCADE), then the visit.
+  /// Scoped to `user_id` so RLS + this filter cannot touch another diary.
+  Future<void> deleteDrink(String drinkId) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    await _client.from('drink_toppings').delete().eq('drink_id', drinkId);
+    await _client
+        .from('drink_entries')
+        .delete()
+        .eq('id', drinkId)
+        .eq('user_id', uid);
     await refresh();
   }
 
@@ -462,6 +523,46 @@ class TeaRepository extends ChangeNotifier {
     toppings = const [];
     notifyListeners();
   }
+}
+
+/// Shared insert/update body. Always writes both `grade` (1–5) and `overall_grade`.
+Map<String, dynamic> drinkEntryWritePayload({
+  required String shopId,
+  required String teaName,
+  required String drinkType,
+  required int sugarLevel,
+  required int iceLevel,
+  required double price,
+  required LetterGrade grade,
+  required String? notes,
+  required DateTime localDay,
+}) {
+  final loggedAt = DateTime(localDay.year, localDay.month, localDay.day, 12);
+  final trimmedNotes = notes?.trim();
+  return {
+    'shop_id': shopId,
+    'tea_name': teaName.trim(),
+    'drink_type': drinkType,
+    'sugar_level': sugarLevel,
+    'ice_level': iceLevel,
+    'price': price,
+    'grade': grade.points,
+    'overall_grade': grade.letter,
+    'notes': (trimmedNotes == null || trimmedNotes.isEmpty) ? null : trimmedNotes,
+    'logged_at': loggedAt.toUtc().toIso8601String(),
+  };
+}
+
+Future<void> replaceDrinkToppings({
+  required SupabaseClient client,
+  required String drinkId,
+  required List<ToppingRow> selectedToppings,
+}) async {
+  await client.from('drink_toppings').delete().eq('drink_id', drinkId);
+  if (selectedToppings.isEmpty) return;
+  await client.from('drink_toppings').insert([
+    for (final t in selectedToppings) {'drink_id': drinkId, 'topping_id': t.id},
+  ]);
 }
 
 String authSignInMessage(AuthException e) {

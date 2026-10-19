@@ -92,7 +92,7 @@ Add a localhost redirect only if you are testing confirmation against a local `f
 
 ## Layout
 
-Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus evenly spaced Home / Map / Social / Profile pills (Map uses a map icon; Map and Social are “still brewing”). Home greets you by username and lists shops; Taste Profile stats and sugar/ice defaults live on Profile. Shop details have **Visits** and **Notes**. Shop names show on one line as `English / 中文`. New users get bilingual Taiwan chain names; existing shops are never wiped. Chinese-only shop names are valid.
+Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus evenly spaced Home / Map / Social / Profile pills (Map uses a map icon; Map and Social are “still brewing”). Home greets you by username and lists shops; Taste Profile stats and sugar/ice defaults live on Profile. Shop details have **Visits** and **Notes**. On Visits, the **⋮** menu on each drink **edits** (same logger form) or **deletes** (confirm first). Shop names show on one line as `English / 中文`. New users get bilingual Taiwan chain names; existing shops are never wiped. Chinese-only shop names are valid.
 
 ## Shop names + defaults SQL (Supabase)
 

@@ -36,6 +36,7 @@ void main() {
     expect(shellTabIndex('/social'), 2);
     expect(shellTabIndex('/profile'), 3);
     expect(shellTabIndex('/log'), -1);
+    expect(shellTabIndex('/log/entry-id'), -1);
     expect(shellTabIndex('/shops/abc'), -1);
   });
 

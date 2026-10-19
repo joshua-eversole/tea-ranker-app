@@ -10,10 +10,20 @@ import '../theme/tokens.dart';
 import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
 
+String drinkLoggerTitle({required bool editing}) =>
+    editing ? 'Edit drink' : 'Log a drink';
+
 class DrinkLoggerScreen extends StatefulWidget {
-  const DrinkLoggerScreen({super.key, required this.repo});
+  const DrinkLoggerScreen({
+    super.key,
+    required this.repo,
+    this.entryId,
+  });
 
   final TeaRepository repo;
+  final String? entryId;
+
+  bool get isEditing => entryId != null && entryId!.isNotEmpty;
 
   @override
   State<DrinkLoggerScreen> createState() => _DrinkLoggerScreenState();
@@ -36,24 +46,84 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   final _selected = <String>{};
   bool _saving = false;
   String? _banner;
+  bool _hydratedEdit = false;
+  bool _missingEdit = false;
 
   @override
   void initState() {
     super.initState();
-    final account = widget.repo.account;
-    if (account != null) {
-      _sugar = account.defaultSugarPercent.toDouble();
-      _ice = account.defaultIcePercent.toDouble();
-      _defaultsApplied = true;
-    } else {
+    if (widget.isEditing) {
       _sugar = 50;
       _ice = 50;
+      _defaultsApplied = true;
+      _hydrateEditIfNeeded(notify: false);
+    } else {
+      final account = widget.repo.account;
+      if (account != null) {
+        _sugar = account.defaultSugarPercent.toDouble();
+        _ice = account.defaultIcePercent.toDouble();
+        _defaultsApplied = true;
+      } else {
+        _sugar = 50;
+        _ice = 50;
+      }
     }
-    widget.repo.addListener(_applyDefaultsIfNeeded);
+    widget.repo.addListener(_onRepo);
+  }
+
+  void _onRepo() {
+    if (widget.isEditing) {
+      _hydrateEditIfNeeded();
+      return;
+    }
+    _applyDefaultsIfNeeded();
+  }
+
+  DrinkEntryRow? _existingEntry() {
+    final id = widget.entryId;
+    if (id == null) return null;
+    final entries = widget.repo.profile?.entries ?? const <DrinkEntryRow>[];
+    for (final e in entries) {
+      if (e.id == id) return e;
+    }
+    return null;
+  }
+
+  void _hydrateEditIfNeeded({bool notify = true}) {
+    if (_hydratedEdit) return;
+    final entry = _existingEntry();
+    if (entry == null) {
+      if (widget.repo.profile != null &&
+          !widget.repo.loading &&
+          widget.repo.loadError == null) {
+        _missingEdit = true;
+        if (notify && mounted) setState(() {});
+      }
+      return;
+    }
+    _shop.text = entry.shop?.displayName ?? '';
+    _tea.text = entry.teaName;
+    _price.text = entry.price == entry.price.roundToDouble()
+        ? entry.price.round().toString()
+        : entry.price.toString();
+    _notes.text = entry.notes ?? '';
+    _day = DateTime(entry.loggedAt.year, entry.loggedAt.month, entry.loggedAt.day);
+    _base = drinkBases.contains(entry.drinkType) ? entry.drinkType : null;
+    _sugar = snapPercent(entry.sugarLevel).toDouble();
+    _ice = snapPercent(entry.iceLevel).toDouble();
+    _grade = entry.letter;
+    _selected
+      ..clear()
+      ..addAll(entry.toppings.map((t) => t.id));
+    _hydratedEdit = true;
+    _missingEdit = false;
+    _defaultsApplied = true;
+    _touchedLevels = true;
+    if (notify && mounted) setState(() {});
   }
 
   void _applyDefaultsIfNeeded() {
-    if (_defaultsApplied || _touchedLevels) return;
+    if (widget.isEditing || _defaultsApplied || _touchedLevels) return;
     final account = widget.repo.account;
     if (account == null || !mounted) return;
     setState(() {
@@ -65,7 +135,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
 
   @override
   void dispose() {
-    widget.repo.removeListener(_applyDefaultsIfNeeded);
+    widget.repo.removeListener(_onRepo);
     _shop.dispose();
     _tea.dispose();
     _price.dispose();
@@ -119,20 +189,38 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     });
     try {
       final selectedRows = _catalog.where((t) => _selected.contains(t.id)).toList();
-      await widget.repo.saveDrink(
-        localDay: _day,
-        shopName: _shop.text,
-        teaName: _tea.text,
-        price: double.parse(_price.text.trim()),
-        drinkType: _base!,
-        sugarLevel: _sugar.round(),
-        iceLevel: _ice.round(),
-        selectedToppings: selectedRows,
-        grade: _grade!,
-        notes: _notes.text,
-      );
-      if (!mounted) return;
-      context.go('/');
+      if (widget.isEditing) {
+        final shopId = await widget.repo.updateDrink(
+          drinkId: widget.entryId!,
+          localDay: _day,
+          shopName: _shop.text,
+          teaName: _tea.text,
+          price: double.parse(_price.text.trim()),
+          drinkType: _base!,
+          sugarLevel: _sugar.round(),
+          iceLevel: _ice.round(),
+          selectedToppings: selectedRows,
+          grade: _grade!,
+          notes: _notes.text,
+        );
+        if (!mounted) return;
+        context.go('/shops/$shopId');
+      } else {
+        await widget.repo.saveDrink(
+          localDay: _day,
+          shopName: _shop.text,
+          teaName: _tea.text,
+          price: double.parse(_price.text.trim()),
+          drinkType: _base!,
+          sugarLevel: _sugar.round(),
+          iceLevel: _ice.round(),
+          selectedToppings: selectedRows,
+          grade: _grade!,
+          notes: _notes.text,
+        );
+        if (!mounted) return;
+        context.go('/');
+      }
     } catch (e) {
       setState(() => _banner = 'Couldn’t save this drink. Check the form and try again.');
     } finally {
@@ -146,6 +234,49 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
       listenable: widget.repo,
       builder: (context, _) {
         final shops = widget.repo.profile?.shops ?? const <ShopRow>[];
+        if (widget.isEditing && !_hydratedEdit) {
+          return Column(
+            children: [
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/');
+                          }
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                      Text(
+                        drinkLoggerTitle(editing: true),
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: _missingEdit
+                      ? const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'That visit isn’t in your log.',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : const CircularProgressIndicator(),
+                ),
+              ),
+            ],
+          );
+        }
         return Column(
           children: [
             SafeArea(
@@ -165,7 +296,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                       icon: const Icon(Icons.close),
                     ),
                     Text(
-                      'Log a drink',
+                      drinkLoggerTitle(editing: widget.isEditing),
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ],

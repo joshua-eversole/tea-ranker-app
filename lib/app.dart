@@ -140,6 +140,15 @@ GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
           GoRoute(
             path: '/log',
             builder: (_, _) => DrinkLoggerScreen(repo: repo),
+            routes: [
+              GoRoute(
+                path: ':entryId',
+                builder: (_, state) => DrinkLoggerScreen(
+                  repo: repo,
+                  entryId: state.pathParameters['entryId'],
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/shops/:id',
