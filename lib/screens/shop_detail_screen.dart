@@ -8,6 +8,7 @@ import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
+import '../widgets/topping_chip.dart';
 import 'home_screen.dart';
 
 const kDeleteVisitConfirmMessage = 'Are you sure you want to delete this?';
@@ -447,19 +448,7 @@ class DrinkVisitCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         for (final t in drink.toppings)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: AppColors.seed,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(AppRadii.chip),
-                              ),
-                            ),
-                            child: Text(t.name, style: const TextStyle(fontSize: 12)),
-                          ),
+                          ToppingChip.fromRow(t, compact: true),
                       ],
                     ),
                   ],

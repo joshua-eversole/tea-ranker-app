@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../grading/grade.dart';
+import '../theme/topping_colors.dart';
 import 'models.dart';
 import 'taste_stats.dart';
 
@@ -73,14 +74,29 @@ class TeaRepository extends ChangeNotifier {
         .toList();
     final toInsert = toppingsToSeedForUser(existing.map((t) => t.name));
     if (toInsert.isEmpty) return;
-    await _client.from('toppings').insert([
+    final payload = [
       for (final seed in toInsert)
         {
           'user_id': uid,
           'name': seed,
           'is_user_added': true,
+          'color_hex': namedColorHexForTopping(seed) ??
+              colorHexForNewTopping(seed, existingHexes: const []),
         },
-    ]);
+    ];
+    try {
+      await _client.from('toppings').insert(payload);
+    } catch (_) {
+      // Column `color_hex` may not exist until Joshua pastes the SQL snippet.
+      await _client.from('toppings').insert([
+        for (final seed in toInsert)
+          {
+            'user_id': uid,
+            'name': seed,
+            'is_user_added': true,
+          },
+      ]);
+    }
   }
 
   Future<void> seedShopsIfMissing() async {
@@ -244,7 +260,10 @@ class TeaRepository extends ChangeNotifier {
     }
   }
 
-  Future<ToppingRow> matchOrCreateTopping(String rawName) async {
+  Future<ToppingRow> matchOrCreateTopping(
+    String rawName, {
+    String? colorHex,
+  }) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
@@ -256,15 +275,37 @@ class TeaRepository extends ChangeNotifier {
     for (final t in toppings) {
       if (t.name.trim().toLowerCase() == needle) return t;
     }
-    final inserted = await _client
-        .from('toppings')
-        .insert({
-          'user_id': uid,
-          'name': rawName.trim(),
-          'is_user_added': true,
-        })
-        .select()
-        .single();
+    final name = rawName.trim();
+    final hex = normalizeColorHex(
+      colorHex ??
+          colorHexForNewTopping(
+            name,
+            existingHexes: toppings.map((t) => t.colorHex),
+          ),
+    );
+    Map<String, dynamic> inserted;
+    try {
+      inserted = await _client
+          .from('toppings')
+          .insert({
+            'user_id': uid,
+            'name': name,
+            'is_user_added': true,
+            'color_hex': hex,
+          })
+          .select()
+          .single();
+    } catch (_) {
+      inserted = await _client
+          .from('toppings')
+          .insert({
+            'user_id': uid,
+            'name': name,
+            'is_user_added': true,
+          })
+          .select()
+          .single();
+    }
     final row = ToppingRow.fromMap(inserted);
     toppings = [...toppings, row]
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -426,6 +467,40 @@ class TeaRepository extends ChangeNotifier {
       );
       notifyListeners();
     }
+  }
+
+  Future<void> updateToppingColor({
+    required String toppingId,
+    required String colorHex,
+  }) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final hex = normalizeColorHex(colorHex);
+    await _client
+        .from('toppings')
+        .update({'color_hex': hex})
+        .eq('id', toppingId)
+        .eq('user_id', uid);
+    toppings = [
+      for (final t in toppings)
+        if (t.id == toppingId) t.copyWith(colorHex: hex) else t,
+    ];
+    final current = profile;
+    if (current != null) {
+      final entries = [
+        for (final e in current.entries)
+          e.withRelations(
+            toppings: [
+              for (final t in e.toppings)
+                if (t.id == toppingId) t.copyWith(colorHex: hex) else t,
+            ],
+          ),
+      ];
+      profile = buildTasteProfile(entries, current.shops);
+    }
+    notifyListeners();
   }
 
   Future<void> updateShopNotes({

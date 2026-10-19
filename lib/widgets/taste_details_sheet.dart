@@ -5,6 +5,7 @@ import '../data/taste_stats.dart';
 import '../theme/tokens.dart';
 import 'grade_circle.dart';
 import 'shop_name_text.dart';
+import 'topping_chip.dart';
 
 Future<void> showTasteDetailsSheet({
   required BuildContext context,
@@ -109,6 +110,13 @@ class TasteDetailsSheet extends StatelessWidget {
                   _DetailRow(
                     label: 'Favorite topping',
                     value: data.favoriteTopping ?? '—',
+                    valueWidget: data.favoriteTopping == null
+                        ? null
+                        : ToppingChip(
+                            label: data.favoriteTopping!,
+                            colorHex: data.favoriteToppingColorHex,
+                            compact: true,
+                          ),
                   ),
                   _DetailRow(
                     label: 'Days since last drink',

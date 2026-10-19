@@ -126,19 +126,33 @@ class ToppingRow {
     required this.name,
     required this.userId,
     required this.isUserAdded,
+    this.colorHex,
   });
 
   final String id;
   final String name;
   final String? userId;
   final bool isUserAdded;
+  /// Chip fill `#RRGGBB`. Null until the SQL snippet is applied / row is colored.
+  final String? colorHex;
 
   factory ToppingRow.fromMap(Map<String, dynamic> map) => ToppingRow(
         id: map['id'] as String,
         name: map['name'] as String,
         userId: map['user_id'] as String?,
         isUserAdded: map['is_user_added'] as bool? ?? true,
+        colorHex: map['color_hex'] as String?,
       );
+
+  ToppingRow copyWith({String? colorHex}) {
+    return ToppingRow(
+      id: id,
+      name: name,
+      userId: userId,
+      isUserAdded: isUserAdded,
+      colorHex: colorHex ?? this.colorHex,
+    );
+  }
 }
 
 class DrinkEntryRow {
@@ -283,6 +297,7 @@ class TasteProfile {
     this.favoriteShopsByBase = const [],
     this.averagePrice,
     this.favoriteTopping,
+    this.favoriteToppingColorHex,
     this.daysSinceLastDrink,
   });
 
@@ -297,6 +312,7 @@ class TasteProfile {
   final List<FavoriteShopForBase> favoriteShopsByBase;
   final double? averagePrice;
   final String? favoriteTopping;
+  final String? favoriteToppingColorHex;
   final int? daysSinceLastDrink;
 
   bool get isEmpty => entries.isEmpty;
