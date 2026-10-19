@@ -9,6 +9,26 @@ import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
 import '../widgets/tea_skeleton.dart';
 
+/// Shown with skeleton shop cards until the first successful Home fetch.
+const kHomeLoadingCopy = 'Loading your log…';
+
+enum HomePhase { loading, error, empty, ready }
+
+/// Empty copy only after a successful fetch with zero drinks.
+HomePhase homePhase({
+  required bool loading,
+  required Object? loadError,
+  required bool hasProfile,
+  required bool hasDrinks,
+}) {
+  if (loadError != null) return HomePhase.error;
+  if (!hasProfile || (loading && !hasDrinks)) {
+    return HomePhase.loading;
+  }
+  if (!hasDrinks) return HomePhase.empty;
+  return HomePhase.ready;
+}
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.repo});
 
@@ -23,17 +43,26 @@ class HomeScreen extends StatelessWidget {
         final hello = (username == null || username.isEmpty)
             ? 'Welcome back'
             : 'Welcome back, $username';
-        if (repo.loading && repo.profile == null) {
-          return HomeLoadSkeleton(welcome: hello);
-        }
-        if (repo.loadError != null) {
-          return HomeLoadError(onRetry: repo.refresh);
-        }
         final data = repo.profile;
-        if (data == null || data.entries.isEmpty) {
-          return _HomeEmpty(welcome: hello);
+        final phase = homePhase(
+          loading: repo.loading,
+          loadError: repo.loadError,
+          hasProfile: data != null,
+          hasDrinks: data != null && data.entries.isNotEmpty,
+        );
+        switch (phase) {
+          case HomePhase.loading:
+            return HomeLoadSkeleton(
+              welcome: hello,
+              loadingCopy: kHomeLoadingCopy,
+            );
+          case HomePhase.error:
+            return HomeLoadError(onRetry: repo.refresh);
+          case HomePhase.empty:
+            return _HomeEmpty(welcome: hello);
+          case HomePhase.ready:
+            return _HomeLoaded(welcome: hello, data: data!);
         }
-        return _HomeLoaded(welcome: hello, data: data);
       },
     );
   }
@@ -110,8 +139,13 @@ class HomeLoadError extends StatelessWidget {
 }
 
 class HomeLoadSkeleton extends StatelessWidget {
-  const HomeLoadSkeleton({super.key, this.welcome = 'Welcome back'});
+  const HomeLoadSkeleton({
+    super.key,
+    this.welcome = 'Welcome back',
+    this.loadingCopy,
+  });
   final String welcome;
+  final String? loadingCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +155,17 @@ class HomeLoadSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             Text(welcome, style: Theme.of(context).textTheme.titleLarge),
+            if (loadingCopy != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                loadingCopy!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.chocolate,
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             const TeaBone(height: 20, width: 80),
             const SizedBox(height: 12),
