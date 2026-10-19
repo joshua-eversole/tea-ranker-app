@@ -15,13 +15,13 @@ enum LetterGrade {
   final String letter;
 
   static LetterGrade? fromPoints(int grade) => switch (grade) {
-        5 => LetterGrade.s,
-        4 => LetterGrade.a,
-        3 => LetterGrade.b,
-        2 => LetterGrade.c,
-        1 => LetterGrade.d,
-        _ => null,
-      };
+    5 => LetterGrade.s,
+    4 => LetterGrade.a,
+    3 => LetterGrade.b,
+    2 => LetterGrade.c,
+    1 => LetterGrade.d,
+    _ => null,
+  };
 
   static LetterGrade? fromOverall(String? overall) {
     if (overall == null) return null;
@@ -81,26 +81,30 @@ AggregateBand? bandForAverage(double? avg) {
   final minus = mark.endsWith('−') || mark.endsWith('-');
   return switch (letter) {
     'S' => (AppColors.gradeS, AppColors.gradeSOn),
-    'A' => plus
-        ? (AppColors.gradeAPlus, Colors.white)
-        : minus
-            ? (AppColors.gradeAMinus, Colors.white)
-            : (AppColors.gradeA, Colors.white),
-    'B' => plus
-        ? (AppColors.gradeBPlus, Colors.white)
-        : minus
-            ? (AppColors.gradeBMinus, Colors.white)
-            : (AppColors.gradeB, Colors.white),
-    'C' => plus
-        ? (AppColors.gradeCPlus, AppColors.gradeSOn)
-        : minus
-            ? (AppColors.gradeCMinus, Colors.white)
-            : (AppColors.gradeC, Colors.white),
-    'D' => plus
-        ? (AppColors.gradeDPlus, Colors.white)
-        : minus
-            ? (AppColors.gradeDMinus, Colors.white)
-            : (AppColors.gradeD, Colors.white),
+    'A' =>
+      plus
+          ? (AppColors.gradeAPlus, Colors.white)
+          : minus
+          ? (AppColors.gradeAMinus, Colors.white)
+          : (AppColors.gradeA, Colors.white),
+    'B' =>
+      plus
+          ? (AppColors.gradeBPlus, Colors.white)
+          : minus
+          ? (AppColors.gradeBMinus, Colors.white)
+          : (AppColors.gradeB, Colors.white),
+    'C' =>
+      plus
+          ? (AppColors.gradeCPlus, AppColors.gradeSOn)
+          : minus
+          ? (AppColors.gradeCMinus, Colors.white)
+          : (AppColors.gradeC, Colors.white),
+    'D' =>
+      plus
+          ? (AppColors.gradeDPlus, Colors.white)
+          : minus
+          ? (AppColors.gradeDMinus, Colors.white)
+          : (AppColors.gradeD, Colors.white),
     _ => (AppColors.seed, AppColors.boba),
   };
 }
@@ -114,3 +118,8 @@ Color gradeWash(String? mark) {
   }
   return Color.lerp(AppColors.cream, colorsForMark(mark).$1, kGradeWashMix)!;
 }
+
+/// Shop details page tint — same family as visit-card washes, not a full-bleed.
+/// TODO: later, known chain brand colors can replace this wash. Do not add a
+/// brand map until that work is scoped.
+Color shopPageWash(AggregateBand? band) => gradeWash(band?.label);

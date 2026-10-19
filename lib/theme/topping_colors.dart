@@ -11,6 +11,12 @@ const kToppingLabelContrastFloor = 4.5;
 const kToppingLabelDark = AppColors.boba;
 const kToppingLabelLight = Color(0xFFFFFFFF);
 const kToppingFallbackHex = '#D4B59E';
+const kToppingDefaultIntensity = 100;
+
+int snapIntensity(int? value) {
+  if (value == null) return kToppingDefaultIntensity;
+  return value.clamp(0, 100);
+}
 
 /// ~10 light, bright fills offered when creating or recoloring a topping.
 const toppingBrightPaletteHex = <String>[
@@ -72,6 +78,13 @@ Color colorFromHex(String? raw, {Color fallback = AppColors.seed}) {
   return Color(int.parse('FF${hex.substring(1)}', radix: 16));
 }
 
+/// Mix the stored hue toward cream at lower intensity (0 = cream, 100 = full hue).
+Color toppingFill({String? colorHex, int? intensity}) {
+  final hue = colorFromHex(colorHex);
+  final t = snapIntensity(intensity) / 100.0;
+  return Color.lerp(AppColors.cream, hue, t)!;
+}
+
 String hexFromColor(Color color) {
   final n = color.toARGB32() & 0xFFFFFF;
   return '#${n.toRadixString(16).padLeft(6, '0').toUpperCase()}';
@@ -98,8 +111,8 @@ String nextBrightPaletteHex(Iterable<String?> existingHexes) {
   for (final hex in toppingBrightPaletteHex) {
     if (!used.contains(hex.toUpperCase())) return hex.toUpperCase();
   }
-  return toppingBrightPaletteHex[
-          existingHexes.length % toppingBrightPaletteHex.length]
+  return toppingBrightPaletteHex[existingHexes.length %
+          toppingBrightPaletteHex.length]
       .toUpperCase();
 }
 

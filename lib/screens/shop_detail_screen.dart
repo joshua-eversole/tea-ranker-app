@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../data/tea_repository.dart';
+import '../grading/grade.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
@@ -55,11 +56,7 @@ ShopDetailPhase shopDetailPhase({
 }
 
 class ShopDetailScreen extends StatefulWidget {
-  const ShopDetailScreen({
-    super.key,
-    required this.repo,
-    required this.shopId,
-  });
+  const ShopDetailScreen({super.key, required this.repo, required this.shopId});
 
   final TeaRepository repo;
   final String shopId;
@@ -96,10 +93,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
       _notesError = null;
     });
     try {
-      await widget.repo.updateShopNotes(
-        shopId: shop.id,
-        notes: _notes.text,
-      );
+      await widget.repo.updateShopNotes(shopId: shop.id, notes: _notes.text);
       if (mounted) {
         setState(() => _savingNotes = false);
       }
@@ -129,17 +123,13 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
               children: [
                 TextField(
                   controller: name,
-                  decoration: const InputDecoration(
-                    labelText: 'English',
-                  ),
+                  decoration: const InputDecoration(labelText: 'English'),
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: zh,
-                  decoration: const InputDecoration(
-                    labelText: '中文',
-                  ),
+                  decoration: const InputDecoration(labelText: '中文'),
                 ),
               ],
             ),
@@ -220,88 +210,91 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
         }
         final feed = item!;
         _syncNotes(feed.shop);
-        return SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/');
-                        }
-                      },
-                      icon: const Icon(Icons.arrow_back),
-                    ),
-                    Expanded(child: ShopNameText(shop: feed.shop)),
-                    IconButton(
-                      tooltip: 'Edit names',
-                      onPressed: () => _editNames(feed.shop),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    GradeOrDash(
-                      band: feed.band,
-                      size: AppLayout.shopHeaderGradeSize,
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16, bottom: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${feed.visitCount} ${feed.visitCount == 1 ? 'visit' : 'visits'}',
-                    style: const TextStyle(color: AppColors.chocolate),
+        return ColoredBox(
+          color: shopPageWash(feed.band),
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go('/');
+                          }
+                        },
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                      Expanded(child: ShopNameText(shop: feed.shop)),
+                      IconButton(
+                        tooltip: 'Edit names',
+                        onPressed: () => _editNames(feed.shop),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      GradeOrDash(
+                        band: feed.band,
+                        size: AppLayout.shopHeaderGradeSize,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    _DetailTab(
-                      label: 'Visits',
-                      selected: _tab == 0,
-                      onTap: () => setState(() => _tab = 0),
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, bottom: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${feed.visitCount} ${feed.visitCount == 1 ? 'visit' : 'visits'}',
+                      style: const TextStyle(color: AppColors.chocolate),
                     ),
-                    const SizedBox(width: 8),
-                    _DetailTab(
-                      label: 'Notes',
-                      selected: _tab == 1,
-                      onTap: () => setState(() => _tab = 1),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: _tab == 0
-                    ? ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                        children: [
-                          for (final drink in drinks) ...[
-                            DrinkVisitCard(
-                              drink: drink,
-                              onEdit: () => _editVisit(drink),
-                              onDelete: () => _deleteVisit(drink),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ],
-                      )
-                    : _ShopNotesTab(
-                        controller: _notes,
-                        saving: _savingNotes,
-                        error: _notesError,
-                        onSave: () => _saveNotes(feed.shop),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      _DetailTab(
+                        label: 'Visits',
+                        selected: _tab == 0,
+                        onTap: () => setState(() => _tab = 0),
                       ),
-              ),
-            ],
+                      const SizedBox(width: 8),
+                      _DetailTab(
+                        label: 'Notes',
+                        selected: _tab == 1,
+                        onTap: () => setState(() => _tab = 1),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _tab == 0
+                      ? ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          children: [
+                            for (final drink in drinks) ...[
+                              DrinkVisitCard(
+                                drink: drink,
+                                onEdit: () => _editVisit(drink),
+                                onDelete: () => _deleteVisit(drink),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
+                        )
+                      : _ShopNotesTab(
+                          controller: _notes,
+                          saving: _savingNotes,
+                          error: _notesError,
+                          onSave: () => _saveNotes(feed.shop),
+                        ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -438,7 +431,10 @@ class DrinkVisitCard extends StatelessWidget {
                         icon: Icons.ac_unit,
                         text: '${drink.iceLevel}%',
                       ),
-                      _IconFact(icon: Icons.calendar_today_outlined, text: date),
+                      _IconFact(
+                        icon: Icons.calendar_today_outlined,
+                        text: date,
+                      ),
                     ],
                   ),
                   if (drink.toppings.isNotEmpty) ...[

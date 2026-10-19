@@ -103,3 +103,5 @@ The earlier [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_
 ## Topping chip colors SQL (Supabase)
 
 Paste [`supabase/toppings_color_hex.sql`](supabase/toppings_color_hex.sql) in the SQL editor (project owner). Additive `toppings.color_hex` (`#RRGGBB`), owner-only RLS unchanged, no `service_role`. Sets fills for Joshua’s 11 names and the new-user seed names when those rows exist; does not delete catalog rows. Custom colors already stored are left alone on re-run.
+
+Then paste [`supabase/toppings_color_intensity.sql`](supabase/toppings_color_intensity.sql) for `toppings.color_intensity` (0–100, default 100). Additive; does not rewrite hues.

@@ -101,10 +101,7 @@ class ProfileScreen extends StatelessWidget {
               const Center(
                 child: Text(
                   'Tea Ranker · PWA',
-                  style: TextStyle(
-                    color: AppColors.chocolate,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: AppColors.chocolate, fontSize: 12),
                 ),
               ),
             ],
@@ -205,16 +202,21 @@ class _ToppingColorSettings extends StatelessWidget {
       context: context,
       toppingName: topping.name,
       initialHex: normalizeColorHex(topping.colorHex),
+      initialIntensity: snapIntensity(topping.colorIntensity),
     );
     if (picked == null) return;
     try {
-      await repo.updateToppingColor(toppingId: topping.id, colorHex: picked);
+      await repo.updateToppingColor(
+        toppingId: topping.id,
+        colorHex: picked.colorHex,
+        colorIntensity: picked.intensity,
+      );
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Couldn’t save that color. Paste supabase/toppings_color_hex.sql in the Supabase SQL editor.',
+              'Couldn’t save that color. Paste supabase/toppings_color_hex.sql and supabase/toppings_color_intensity.sql in the Supabase SQL editor.',
             ),
           ),
         );
@@ -244,10 +246,7 @@ class _ToppingColorSettings extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   for (final t in toppings)
-                    ToppingChip.fromRow(
-                      t,
-                      onTap: () => _edit(context, t),
-                    ),
+                    ToppingChip.fromRow(t, onTap: () => _edit(context, t)),
                 ],
               ),
           ],

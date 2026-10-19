@@ -74,28 +74,38 @@ class TeaRepository extends ChangeNotifier {
         .toList();
     final toInsert = toppingsToSeedForUser(existing.map((t) => t.name));
     if (toInsert.isEmpty) return;
-    final payload = [
+    final withColor = [
       for (final seed in toInsert)
         {
           'user_id': uid,
           'name': seed,
           'is_user_added': true,
-          'color_hex': namedColorHexForTopping(seed) ??
+          'color_hex':
+              namedColorHexForTopping(seed) ??
               colorHexForNewTopping(seed, existingHexes: const []),
+          'color_intensity': kToppingDefaultIntensity,
         },
     ];
     try {
-      await _client.from('toppings').insert(payload);
+      await _client.from('toppings').insert(withColor);
     } catch (_) {
-      // Column `color_hex` may not exist until Joshua pastes the SQL snippet.
-      await _client.from('toppings').insert([
-        for (final seed in toInsert)
-          {
-            'user_id': uid,
-            'name': seed,
-            'is_user_added': true,
-          },
-      ]);
+      try {
+        await _client.from('toppings').insert([
+          for (final row in withColor)
+            {
+              'user_id': uid,
+              'name': row['name'],
+              'is_user_added': true,
+              'color_hex': row['color_hex'],
+            },
+        ]);
+      } catch (_) {
+        // Columns may not exist until Joshua pastes the SQL snippets.
+        await _client.from('toppings').insert([
+          for (final seed in toInsert)
+            {'user_id': uid, 'name': seed, 'is_user_added': true},
+        ]);
+      }
     }
   }
 
@@ -125,11 +135,7 @@ class TeaRepository extends ChangeNotifier {
       // Column `name_zh` may not exist until Joshua runs the SQL snippet.
       await _client.from('shops').insert([
         for (final seed in toInsert)
-          {
-            'user_id': uid,
-            'name': seed.name,
-            'is_user_added': false,
-          },
+          {'user_id': uid, 'name': seed.name, 'is_user_added': false},
       ]);
     }
   }
@@ -143,9 +149,9 @@ class TeaRepository extends ChangeNotifier {
     try {
       dynamic entryRows;
       try {
-        entryRows = await _client.from('drink_entries').select(
-              '*, shops(*), drink_toppings(*, toppings(*))',
-            );
+        entryRows = await _client
+            .from('drink_entries')
+            .select('*, shops(*), drink_toppings(*, toppings(*))');
       } catch (_) {
         entryRows = await _client.from('drink_entries').select();
       }
@@ -161,10 +167,15 @@ class TeaRepository extends ChangeNotifier {
       final shops = (shopRows as List)
           .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList();
-      toppings = (toppingRows as List)
-          .map((e) => ToppingRow.fromMap(Map<String, dynamic>.from(e as Map)))
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      toppings =
+          (toppingRows as List)
+              .map(
+                (e) => ToppingRow.fromMap(Map<String, dynamic>.from(e as Map)),
+              )
+              .toList()
+            ..sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
 
       final shopById = {for (final s in shops) s.id: s};
       final toppingById = {for (final t in toppings) t.id: t};
@@ -178,17 +189,13 @@ class TeaRepository extends ChangeNotifier {
         toppingsByDrink.putIfAbsent(drinkId, () => []).add(topping);
       }
 
-      final entries = (entryRows as List)
-          .map((e) {
-            final row =
-                DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
-            return row.withRelations(
-              shop: shopById[row.shopId],
-              toppings: toppingsByDrink[row.id] ?? row.toppings,
-            );
-          })
-          .toList()
-        ..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+      final entries = (entryRows as List).map((e) {
+        final row = DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
+        return row.withRelations(
+          shop: shopById[row.shopId],
+          toppings: toppingsByDrink[row.id] ?? row.toppings,
+        );
+      }).toList()..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
 
       if (profileRow != null) {
         account = ProfileRow.fromMap(profileRow);
@@ -235,11 +242,7 @@ class TeaRepository extends ChangeNotifier {
     try {
       final inserted = await _client
           .from('shops')
-          .insert({
-            'user_id': uid,
-            ...columns,
-            'is_user_added': true,
-          })
+          .insert({'user_id': uid, ...columns, 'is_user_added': true})
           .select()
           .single();
       return ShopRow.fromMap(inserted);
@@ -263,6 +266,7 @@ class TeaRepository extends ChangeNotifier {
   Future<ToppingRow> matchOrCreateTopping(
     String rawName, {
     String? colorHex,
+    int? colorIntensity,
   }) async {
     final uid = userId;
     if (uid == null) {
@@ -283,28 +287,34 @@ class TeaRepository extends ChangeNotifier {
             existingHexes: toppings.map((t) => t.colorHex),
           ),
     );
-    Map<String, dynamic> inserted;
-    try {
-      inserted = await _client
-          .from('toppings')
-          .insert({
-            'user_id': uid,
-            'name': name,
-            'is_user_added': true,
-            'color_hex': hex,
-          })
-          .select()
-          .single();
-    } catch (_) {
-      inserted = await _client
-          .from('toppings')
-          .insert({
-            'user_id': uid,
-            'name': name,
-            'is_user_added': true,
-          })
-          .select()
-          .single();
+    final intensity = snapIntensity(colorIntensity);
+    Map<String, dynamic>? inserted;
+    Object? lastError;
+    for (final payload in [
+      {
+        'user_id': uid,
+        'name': name,
+        'is_user_added': true,
+        'color_hex': hex,
+        'color_intensity': intensity,
+      },
+      {'user_id': uid, 'name': name, 'is_user_added': true, 'color_hex': hex},
+      {'user_id': uid, 'name': name, 'is_user_added': true},
+    ]) {
+      try {
+        inserted = await _client
+            .from('toppings')
+            .insert(payload)
+            .select()
+            .single();
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (inserted == null) {
+      throw lastError ?? StateError('Couldn’t add that topping.');
     }
     final row = ToppingRow.fromMap(inserted);
     toppings = [...toppings, row]
@@ -430,10 +440,7 @@ class TeaRepository extends ChangeNotifier {
     if (en == null && zh == null) {
       throw ArgumentError('Need an English or Chinese shop name');
     }
-    final payload = <String, dynamic>{
-      'name': en,
-      'name_zh': zh,
-    };
+    final payload = <String, dynamic>{'name': en, 'name_zh': zh};
     try {
       await _client.from('shops').update(payload).eq('id', shopId);
     } catch (_) {
@@ -453,10 +460,10 @@ class TeaRepository extends ChangeNotifier {
     }
     final sugar = snapPercent(sugarPercent);
     final ice = snapPercent(icePercent);
-    await _client.from('profiles').update({
-      'default_sugar_percent': sugar,
-      'default_ice_percent': ice,
-    }).eq('id', uid);
+    await _client
+        .from('profiles')
+        .update({'default_sugar_percent': sugar, 'default_ice_percent': ice})
+        .eq('id', uid);
     final current = account;
     if (current != null) {
       account = ProfileRow(
@@ -472,20 +479,33 @@ class TeaRepository extends ChangeNotifier {
   Future<void> updateToppingColor({
     required String toppingId,
     required String colorHex,
+    int? colorIntensity,
   }) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
     }
     final hex = normalizeColorHex(colorHex);
-    await _client
-        .from('toppings')
-        .update({'color_hex': hex})
-        .eq('id', toppingId)
-        .eq('user_id', uid);
+    final intensity = snapIntensity(colorIntensity);
+    try {
+      await _client
+          .from('toppings')
+          .update({'color_hex': hex, 'color_intensity': intensity})
+          .eq('id', toppingId)
+          .eq('user_id', uid);
+    } catch (_) {
+      await _client
+          .from('toppings')
+          .update({'color_hex': hex})
+          .eq('id', toppingId)
+          .eq('user_id', uid);
+    }
     toppings = [
       for (final t in toppings)
-        if (t.id == toppingId) t.copyWith(colorHex: hex) else t,
+        if (t.id == toppingId)
+          t.copyWith(colorHex: hex, colorIntensity: intensity)
+        else
+          t,
     ];
     final current = profile;
     if (current != null) {
@@ -494,7 +514,10 @@ class TeaRepository extends ChangeNotifier {
           e.withRelations(
             toppings: [
               for (final t in e.toppings)
-                if (t.id == toppingId) t.copyWith(colorHex: hex) else t,
+                if (t.id == toppingId)
+                  t.copyWith(colorHex: hex, colorIntensity: intensity)
+                else
+                  t,
             ],
           ),
       ];
@@ -508,9 +531,10 @@ class TeaRepository extends ChangeNotifier {
     required String? notes,
   }) async {
     final text = notes?.trim();
-    await _client.from('shops').update({
-      'notes': (text == null || text.isEmpty) ? null : text,
-    }).eq('id', shopId);
+    await _client
+        .from('shops')
+        .update({'notes': (text == null || text.isEmpty) ? null : text})
+        .eq('id', shopId);
     await refresh();
   }
 
@@ -547,7 +571,9 @@ Map<String, dynamic> drinkEntryWritePayload({
     'price': price,
     'grade': grade.points,
     'overall_grade': grade.letter,
-    'notes': (trimmedNotes == null || trimmedNotes.isEmpty) ? null : trimmedNotes,
+    'notes': (trimmedNotes == null || trimmedNotes.isEmpty)
+        ? null
+        : trimmedNotes,
     'logged_at': loggedAt.toUtc().toIso8601String(),
   };
 }

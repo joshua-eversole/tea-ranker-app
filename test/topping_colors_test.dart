@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tea_ranker/data/models.dart';
+import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/theme/topping_colors.dart';
 import 'package:tea_ranker/widgets/topping_chip.dart';
@@ -65,10 +66,7 @@ void main() {
   });
 
   test('new unnamed topping takes the next unused bright swatch', () {
-    expect(
-      colorHexForNewTopping('Lychee', existingHexes: const []),
-      '#F3E1C6',
-    );
+    expect(colorHexForNewTopping('Lychee', existingHexes: const []), '#F3E1C6');
     expect(
       colorHexForNewTopping(
         'Lychee',
@@ -108,8 +106,14 @@ void main() {
         matching: find.byType(AnimatedContainer),
       ),
     );
-    expect((sesame.decoration as ShapeDecoration).color, const Color(0xFF1A1A1A));
-    expect((pineapple.decoration as ShapeDecoration).color, const Color(0xFFFFF59D));
+    expect(
+      (sesame.decoration as ShapeDecoration).color,
+      toppingFill(colorHex: '#1A1A1A', intensity: 100),
+    );
+    expect(
+      (pineapple.decoration as ShapeDecoration).color,
+      const Color(0xFFFFF59D),
+    );
     expect(
       tester.widget<Text>(find.text('Sesame Milk')).style?.color,
       kToppingLabelLight,
@@ -138,11 +142,17 @@ void main() {
     );
 
     expect(find.text('Custom Jelly'), findsWidgets);
-    expect(find.text('Brown label — contrast is at least 4.5:1'), findsOneWidget);
+    expect(
+      find.text('Brown label — contrast is at least 4.5:1'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.bySemanticsLabel('Palette color #F8BBD0'));
     await tester.pumpAndSettle();
-    expect(find.text('Brown label — contrast is at least 4.5:1'), findsOneWidget);
+    expect(
+      find.text('Brown label — contrast is at least 4.5:1'),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.widgetWithText(TextField, 'Hex'), '#1A1A1A');
     await tester.pumpAndSettle();
@@ -150,17 +160,84 @@ void main() {
       find.text('White label — fill is too dark for brown text'),
       findsOneWidget,
     );
+
+    await tester.drag(find.byType(Slider).first, const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('0%'), findsWidgets);
+    expect(
+      find.text('Brown label — contrast is at least 4.5:1'),
+      findsOneWidget,
+    );
   });
 
-  test('ToppingRow maps color_hex', () {
+  test('intensity mixes hue toward cream; contrast uses the mix', () {
+    expect(snapIntensity(null), 100);
+    expect(snapIntensity(140), 100);
+    expect(snapIntensity(-3), 0);
+    expect(
+      toppingFill(colorHex: '#1A1A1A', intensity: 100),
+      colorFromHex('#1A1A1A'),
+    );
+    expect(toppingFill(colorHex: '#1A1A1A', intensity: 0), AppColors.cream);
+    final washed = toppingFill(colorHex: '#1A1A1A', intensity: 20);
+    expect(toppingFillNeedsWhiteLabel(washed), isFalse);
+    expect(
+      toppingFillNeedsWhiteLabel(
+        toppingFill(colorHex: '#1A1A1A', intensity: 100),
+      ),
+      isTrue,
+    );
+  });
+
+  test('shop page wash matches visit-card grade wash, not a full-bleed', () {
+    expect(shopPageWash(AggregateBand.a), gradeWash('A'));
+    expect(shopPageWash(AggregateBand.aPlus), gradeWash('A+'));
+    expect(shopPageWash(null), gradeWash(null));
+    expect(shopPageWash(AggregateBand.a), isNot(AppColors.gradeA));
+  });
+
+  testWidgets('tappable chips shrink-wrap so Wrap can put two on one row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            child: Wrap(
+              spacing: 8,
+              children: [
+                ToppingChip(label: 'Boba', colorHex: '#3E2723', onTap: () {}),
+                ToppingChip(label: 'Aloe', colorHex: '#DCEDC8', onTap: () {}),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final chips = tester
+        .renderObjectList<RenderBox>(find.byType(ToppingChip))
+        .toList();
+    expect(chips, hasLength(2));
+    expect(chips[0].size.width, lessThan(200));
+    expect(chips[1].size.width, lessThan(200));
+    expect(
+      chips[0].localToGlobal(Offset.zero).dy,
+      chips[1].localToGlobal(Offset.zero).dy,
+    );
+  });
+
+  test('ToppingRow maps color_hex and color_intensity', () {
     final row = ToppingRow.fromMap({
       'id': 't1',
       'name': 'Boba',
       'user_id': 'u1',
       'is_user_added': true,
       'color_hex': '#3E2723',
+      'color_intensity': 80,
     });
     expect(row.colorHex, '#3E2723');
+    expect(row.colorIntensity, 80);
     expect(row.copyWith(colorHex: '#C5E1A5').colorHex, '#C5E1A5');
   });
 }
