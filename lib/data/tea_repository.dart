@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../grading/grade.dart';
 import '../theme/topping_colors.dart';
+import 'hangouts.dart';
 import 'models.dart';
 import 'social.dart';
 import 'taste_stats.dart';
@@ -197,11 +198,18 @@ class TeaRepository extends ChangeNotifier {
         toppingsByDrink.putIfAbsent(drinkId, () => []).add(topping);
       }
 
-      final entries = (entryRows as List).map((e) {
+      final entryList = List<dynamic>.from(entryRows as List);
+      final companionsByDrink = await _companionsByDrink([
+        for (final e in entryList)
+          Map<String, dynamic>.from(e as Map)['id'] as String,
+      ]);
+
+      final entries = entryList.map((e) {
         final row = DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
         return row.withRelations(
           shop: shopById[row.shopId],
           toppings: toppingsByDrink[row.id] ?? row.toppings,
+          companions: companionsByDrink[row.id] ?? const [],
         );
       }).toList()..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
 
@@ -342,31 +350,48 @@ class TeaRepository extends ChangeNotifier {
     required List<ToppingRow> selectedToppings,
     required LetterGrade grade,
     required String? notes,
+    List<String> companionUserIds = const [],
+    HangoutLogPrefill? hangoutPrefill,
   }) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
     }
     final shop = await matchOrCreateShop(shopName);
-    final entry = await _client
-        .from('drink_entries')
-        .insert({
-          'user_id': uid,
-          'photo_url': null,
-          ...drinkEntryWritePayload(
-            shopId: shop.id,
-            teaName: teaName,
-            drinkType: drinkType,
-            sugarLevel: sugarLevel,
-            iceLevel: iceLevel,
-            price: price,
-            grade: grade,
-            notes: notes,
-            localDay: localDay,
-          ),
-        })
-        .select()
-        .single();
+    final hangoutId =
+        hangoutPrefill?.hangoutId ??
+        (companionUserIds.isNotEmpty ? newHangoutId() : null);
+    final insertPayload = <String, dynamic>{
+      'user_id': uid,
+      'photo_url': null,
+      ...drinkEntryWritePayload(
+        shopId: shop.id,
+        teaName: teaName,
+        drinkType: drinkType,
+        sugarLevel: sugarLevel,
+        iceLevel: iceLevel,
+        price: price,
+        grade: grade,
+        notes: notes,
+        localDay: localDay,
+      ),
+    };
+    if (hangoutId != null) insertPayload['hangout_id'] = hangoutId;
+    Map<String, dynamic> entry;
+    try {
+      entry = await _client
+          .from('drink_entries')
+          .insert(insertPayload)
+          .select()
+          .single();
+    } catch (_) {
+      insertPayload.remove('hangout_id');
+      entry = await _client
+          .from('drink_entries')
+          .insert(insertPayload)
+          .select()
+          .single();
+    }
     final drinkId = entry['id'] as String;
     if (selectedToppings.isNotEmpty) {
       await _client.from('drink_toppings').insert([
@@ -374,6 +399,15 @@ class TeaRepository extends ChangeNotifier {
           {'drink_id': drinkId, 'topping_id': t.id},
       ]);
     }
+    await syncHangoutCompanions(
+      drinkId: drinkId,
+      shopName: shop.displayName.isNotEmpty ? shop.displayName : shopName,
+      localDay: localDay,
+      hangoutId: hangoutId ?? entry['hangout_id'] as String?,
+      selectedFriendIds: companionUserIds,
+      previousFriendIds: const [],
+      hangoutPrefill: hangoutPrefill,
+    );
     await refresh();
   }
 
@@ -390,33 +424,60 @@ class TeaRepository extends ChangeNotifier {
     required List<ToppingRow> selectedToppings,
     required LetterGrade grade,
     required String? notes,
+    List<String> companionUserIds = const [],
   }) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
     }
     final shop = await matchOrCreateShop(shopName);
-    await _client
-        .from('drink_entries')
-        .update(
-          drinkEntryWritePayload(
-            shopId: shop.id,
-            teaName: teaName,
-            drinkType: drinkType,
-            sugarLevel: sugarLevel,
-            iceLevel: iceLevel,
-            price: price,
-            grade: grade,
-            notes: notes,
-            localDay: localDay,
-          ),
-        )
-        .eq('id', drinkId)
-        .eq('user_id', uid);
+    DrinkEntryRow? existing;
+    for (final e in profile?.entries ?? const <DrinkEntryRow>[]) {
+      if (e.id == drinkId) existing = e;
+    }
+    var hangoutId = existing?.hangoutId;
+    if (companionUserIds.isNotEmpty) {
+      hangoutId ??= newHangoutId();
+    }
+    final payload = drinkEntryWritePayload(
+      shopId: shop.id,
+      teaName: teaName,
+      drinkType: drinkType,
+      sugarLevel: sugarLevel,
+      iceLevel: iceLevel,
+      price: price,
+      grade: grade,
+      notes: notes,
+      localDay: localDay,
+    );
+    try {
+      await _client
+          .from('drink_entries')
+          .update({...payload, 'hangout_id': ?hangoutId})
+          .eq('id', drinkId)
+          .eq('user_id', uid);
+    } catch (_) {
+      await _client
+          .from('drink_entries')
+          .update(payload)
+          .eq('id', drinkId)
+          .eq('user_id', uid);
+    }
     await replaceDrinkToppings(
       client: _client,
       drinkId: drinkId,
       selectedToppings: selectedToppings,
+    );
+    await syncHangoutCompanions(
+      drinkId: drinkId,
+      shopName: shop.displayName.isNotEmpty ? shop.displayName : shopName,
+      localDay: localDay,
+      hangoutId: hangoutId,
+      selectedFriendIds: companionUserIds,
+      previousFriendIds: [
+        for (final c in existing?.companions ?? const <DrinkCompanionView>[])
+          c.userId,
+      ],
     );
     await refresh();
     return shop.id;
@@ -547,7 +608,98 @@ class TeaRepository extends ChangeNotifier {
   }
 
   static const _friendDrinkSelect =
-      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
+      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, hangout_id, shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
+
+  Future<Map<String, List<DrinkCompanionView>>> _companionsByDrink(
+    List<String> drinkIds,
+  ) async {
+    if (drinkIds.isEmpty) return {};
+    List rows;
+    try {
+      rows = await _client.from('drink_companions').select() as List;
+    } catch (_) {
+      return {};
+    }
+    final wanted = drinkIds.toSet();
+    final friendIds = <String>{};
+    final raw = <DrinkCompanionRow>[];
+    for (final item in rows) {
+      final map = Map<String, dynamic>.from(item as Map);
+      if (map['friend_user_id'] == null) continue;
+      final row = DrinkCompanionRow.fromMap(map);
+      if (!wanted.contains(row.drinkEntryId)) continue;
+      raw.add(row);
+      friendIds.add(row.friendUserId);
+    }
+    final names = <String, String>{};
+    if (friendIds.isNotEmpty) {
+      try {
+        final profiles = await _client
+            .from('profiles')
+            .select('id, username')
+            .inFilter('id', friendIds.toList());
+        for (final p in profiles as List) {
+          final m = Map<String, dynamic>.from(p as Map);
+          names[m['id'] as String] = (m['username'] as String?) ?? '';
+        }
+      } catch (_) {}
+    }
+    final out = <String, List<DrinkCompanionView>>{};
+    for (final row in raw) {
+      out
+          .putIfAbsent(row.drinkEntryId, () => [])
+          .add(
+            DrinkCompanionView(
+              userId: row.friendUserId,
+              username: names[row.friendUserId] ?? row.username,
+              peerDrinkId: row.peerDrinkId,
+              inviteStatus: row.inviteStatus?.name,
+            ),
+          );
+    }
+    return out;
+  }
+
+  Future<List<DrinkEntryRow>> _friendEntries(String friendId) async {
+    dynamic entryRows;
+    try {
+      entryRows = await _client
+          .from('drink_entries')
+          .select(_friendDrinkSelect)
+          .eq('user_id', friendId)
+          .order('logged_at', ascending: false);
+    } catch (_) {
+      entryRows = await _client
+          .from('drink_entries')
+          .select(
+            'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at',
+          )
+          .eq('user_id', friendId)
+          .order('logged_at', ascending: false);
+    }
+    final shopRows = await _client
+        .from('shops')
+        .select()
+        .eq('user_id', friendId);
+    final shops = (shopRows as List)
+        .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final shopById = {for (final s in shops) s.id: s};
+    final parsed = <DrinkEntryRow>[];
+    for (final e in entryRows as List) {
+      parsed.add(DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map)));
+    }
+    final companionsByDrink = await _companionsByDrink([
+      for (final row in parsed) row.id,
+    ]);
+    return [
+      for (final row in parsed)
+        row.withRelations(
+          shop: shopById[row.shopId] ?? row.shop,
+          companions: companionsByDrink[row.id] ?? const [],
+        ),
+    ];
+  }
 
   Future<List<DirectoryProfile>> loadDirectory() async {
     final rows = await _client.from('profiles').select('id, username');
@@ -616,36 +768,252 @@ class TeaRepository extends ChangeNotifier {
         FriendRelation.accepted) {
       throw StateError('You can only view a friend’s log.');
     }
+    final entries = await _friendEntries(friendId);
+    final shops = [
+      for (final e in entries)
+        if (e.shop != null) e.shop!,
+    ];
+    final uniqueShops = <String, ShopRow>{for (final s in shops) s.id: s};
+    return buildTasteProfile(entries, uniqueShops.values.toList());
+  }
 
-    dynamic entryRows;
+  Future<DrinkEntryRow> fetchFriendDrink({
+    required String friendId,
+    required String drinkId,
+  }) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    final edges = await loadFriendships();
+    if (friendRelation(me: uid, other: friendId, rows: edges) !=
+        FriendRelation.accepted) {
+      throw StateError('You can only view a friend’s log.');
+    }
+    final entries = await _friendEntries(friendId);
+    for (final e in entries) {
+      if (e.id == drinkId) return e;
+    }
+    throw StateError('That drink isn’t in their log.');
+  }
+
+  Future<List<HangoutInvite>> loadHangoutInvites() async {
+    final uid = userId;
+    if (uid == null) return const [];
+    List rows;
     try {
-      entryRows = await _client
-          .from('drink_entries')
-          .select(_friendDrinkSelect)
-          .eq('user_id', friendId)
-          .order('logged_at', ascending: false);
+      rows =
+          await _client
+                  .from('drink_companions')
+                  .select()
+                  .eq('friend_user_id', uid)
+                  .eq('invite_status', 'pending')
+              as List;
     } catch (_) {
-      entryRows = await _client
-          .from('drink_entries')
-          .select(
-            'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at',
-          )
-          .eq('user_id', friendId)
-          .order('logged_at', ascending: false);
+      return const [];
+    }
+    final invites = <HangoutInvite>[];
+    for (final item in rows) {
+      final companion = DrinkCompanionRow.fromMap(
+        Map<String, dynamic>.from(item as Map),
+      );
+      try {
+        final drinkMap = await _client
+            .from('drink_entries')
+            .select(
+              'id, user_id, hangout_id, logged_at, shops(id, user_id, name, name_zh, is_user_added)',
+            )
+            .eq('id', companion.drinkEntryId)
+            .maybeSingle();
+        if (drinkMap == null) continue;
+        final map = Map<String, dynamic>.from(drinkMap);
+        ShopRow? shop;
+        final rawShop = map['shops'];
+        if (rawShop is Map<String, dynamic>) {
+          shop = ShopRow.fromMap(rawShop);
+        }
+        final loggedAt = DateTime.parse(map['logged_at'] as String).toLocal();
+        final senderId = map['user_id'] as String;
+        String senderName = '';
+        final profile = await _client
+            .from('profiles')
+            .select('id, username')
+            .eq('id', senderId)
+            .maybeSingle();
+        if (profile != null) {
+          senderName = (profile['username'] as String?) ?? '';
+        }
+        invites.add(
+          HangoutInvite(
+            companion: companion,
+            senderId: senderId,
+            senderUsername: senderName,
+            shopName: shop?.displayName ?? '',
+            localDay: DateTime(loggedAt.year, loggedAt.month, loggedAt.day),
+            hangoutId: map['hangout_id'] as String?,
+          ),
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+    return invites;
+  }
+
+  Future<void> declineHangoutInvite(String drinkEntryId) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    await _client
+        .from('drink_companions')
+        .update({'invite_status': 'declined'})
+        .eq('drink_entry_id', drinkEntryId)
+        .eq('friend_user_id', uid)
+        .eq('invite_status', 'pending');
+  }
+
+  Future<void> syncHangoutCompanions({
+    required String drinkId,
+    required String shopName,
+    required DateTime localDay,
+    required String? hangoutId,
+    required List<String> selectedFriendIds,
+    required List<String> previousFriendIds,
+    HangoutLogPrefill? hangoutPrefill,
+  }) async {
+    final uid = userId;
+    if (uid == null) return;
+    final selected = {
+      for (final id in selectedFriendIds)
+        if (id != uid) id,
+    };
+    final previous = previousFriendIds.toSet();
+
+    for (final removed in previous.difference(selected)) {
+      await _client
+          .from('drink_companions')
+          .delete()
+          .eq('drink_entry_id', drinkId)
+          .eq('friend_user_id', removed);
     }
 
-    var shopRows = await _client.from('shops').select().eq('user_id', friendId);
-    final shops = (shopRows as List)
-        .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
-        .toList();
-    final shopById = {for (final s in shops) s.id: s};
+    if (selected.isEmpty) return;
+    var sharedHangout = hangoutId ?? newHangoutId();
+    try {
+      await _client
+          .from('drink_entries')
+          .update({'hangout_id': sharedHangout})
+          .eq('id', drinkId)
+          .eq('user_id', uid);
+    } catch (_) {}
 
-    final entries = (entryRows as List).map((e) {
-      final row = DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
-      return row.withRelations(shop: shopById[row.shopId] ?? row.shop);
-    }).toList();
+    for (final friendId in selected) {
+      if (previous.contains(friendId) &&
+          hangoutPrefill?.friendUserId != friendId) {
+        continue;
+      }
+      final isAcceptingSender = hangoutPrefill?.friendUserId == friendId;
+      DrinkEntryRow? existing;
+      if (!isAcceptingSender) {
+        try {
+          existing = mostRecentSameShopDay(
+            friendDrinks: await _friendEntries(friendId),
+            shopName: shopName,
+            localDay: localDay,
+          );
+        } catch (_) {
+          existing = null;
+        }
+      }
+      if (isAcceptingSender) {
+        await _upsertCompanion(
+          drinkEntryId: drinkId,
+          friendUserId: friendId,
+          inviteStatus: CompanionInviteStatus.accepted,
+          peerDrinkId: hangoutPrefill!.fromDrinkId,
+        );
+        await _client
+            .from('drink_companions')
+            .update({'invite_status': 'accepted', 'peer_drink_id': drinkId})
+            .eq('drink_entry_id', hangoutPrefill.fromDrinkId)
+            .eq('friend_user_id', uid);
+        if (hangoutPrefill.hangoutId != null) {
+          sharedHangout = hangoutPrefill.hangoutId!;
+          try {
+            await _client
+                .from('drink_entries')
+                .update({'hangout_id': sharedHangout})
+                .eq('id', drinkId)
+                .eq('user_id', uid);
+          } catch (_) {}
+        }
+        continue;
+      }
+      if (existing != null) {
+        final theirHangout = existing.hangoutId ?? sharedHangout;
+        sharedHangout = theirHangout;
+        try {
+          await _client
+              .from('drink_entries')
+              .update({'hangout_id': sharedHangout})
+              .eq('id', drinkId)
+              .eq('user_id', uid);
+          await _client
+              .from('drink_entries')
+              .update({'hangout_id': sharedHangout})
+              .eq('id', existing.id)
+              .eq('user_id', friendId);
+        } catch (_) {}
+        await _upsertCompanion(
+          drinkEntryId: drinkId,
+          friendUserId: friendId,
+          inviteStatus: CompanionInviteStatus.linked,
+          peerDrinkId: existing.id,
+        );
+        await _upsertCompanion(
+          drinkEntryId: existing.id,
+          friendUserId: uid,
+          inviteStatus: CompanionInviteStatus.linked,
+          peerDrinkId: drinkId,
+        );
+      } else {
+        await _upsertCompanion(
+          drinkEntryId: drinkId,
+          friendUserId: friendId,
+          inviteStatus: CompanionInviteStatus.pending,
+          peerDrinkId: null,
+        );
+      }
+    }
+  }
 
-    return buildTasteProfile(entries, shops);
+  Future<void> _upsertCompanion({
+    required String drinkEntryId,
+    required String friendUserId,
+    required CompanionInviteStatus inviteStatus,
+    required String? peerDrinkId,
+  }) async {
+    final payload = <String, dynamic>{
+      'drink_entry_id': drinkEntryId,
+      'friend_user_id': friendUserId,
+      'invite_status': inviteStatus.name,
+      'peer_drink_id': peerDrinkId,
+    };
+    try {
+      await _client
+          .from('drink_companions')
+          .upsert(payload, onConflict: 'drink_entry_id,friend_user_id');
+    } catch (_) {
+      try {
+        await _client.from('drink_companions').insert(payload);
+      } catch (_) {
+        await _client
+            .from('drink_companions')
+            .update({
+              'invite_status': inviteStatus.name,
+              'peer_drink_id': peerDrinkId,
+            })
+            .eq('drink_entry_id', drinkEntryId)
+            .eq('friend_user_id', friendUserId);
+      }
+    }
   }
 
   Future<void> signOut() async {

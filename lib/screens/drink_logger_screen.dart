@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../data/hangouts.dart';
 import '../data/models.dart';
+import '../data/social.dart';
 import '../data/tea_repository.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
@@ -12,15 +14,22 @@ import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
+import '../widgets/with_companions_line.dart';
 
 String drinkLoggerTitle({required bool editing}) =>
     editing ? 'Edit drink' : 'Log a drink';
 
 class DrinkLoggerScreen extends StatefulWidget {
-  const DrinkLoggerScreen({super.key, required this.repo, this.entryId});
+  const DrinkLoggerScreen({
+    super.key,
+    required this.repo,
+    this.entryId,
+    this.hangoutPrefill,
+  });
 
   final TeaRepository repo;
   final String? entryId;
+  final HangoutLogPrefill? hangoutPrefill;
 
   bool get isEditing => entryId != null && entryId!.isNotEmpty;
 
@@ -47,6 +56,9 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   String? _banner;
   bool _hydratedEdit = false;
   bool _missingEdit = false;
+  bool _hangoutApplied = false;
+  final _companionIds = <String>{};
+  List<DirectoryProfile> _friends = const [];
 
   @override
   void initState() {
@@ -68,6 +80,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
       }
     }
     widget.repo.addListener(_onRepo);
+    _loadFriends();
+    _applyHangoutPrefill();
   }
 
   void _onRepo() {
@@ -118,6 +132,9 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     _selected
       ..clear()
       ..addAll(entry.toppings.map((t) => t.id));
+    _companionIds
+      ..clear()
+      ..addAll(entry.companions.map((c) => c.userId));
     _hydratedEdit = true;
     _missingEdit = false;
     _defaultsApplied = true;
@@ -159,6 +176,45 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   }
 
   List<ToppingRow> get _catalog => widget.repo.toppings;
+
+  Future<void> _loadFriends() async {
+    try {
+      final directory = await widget.repo.loadDirectory();
+      final friendships = await widget.repo.loadFriendships();
+      final me = widget.repo.userId ?? '';
+      if (!mounted) return;
+      setState(() {
+        _friends = acceptedFriendsOnly(
+          me: me,
+          friendships: friendships,
+          directory: directory,
+        );
+      });
+    } catch (_) {}
+  }
+
+  void _applyHangoutPrefill() {
+    final prefill = widget.hangoutPrefill;
+    if (prefill == null || widget.isEditing || _hangoutApplied) return;
+    _day = prefill.localDay;
+    _shop.text = prefill.shopName;
+    _companionIds.add(prefill.friendUserId);
+    _hangoutApplied = true;
+  }
+
+  Future<void> _pickCompanions() async {
+    final picked = await showCompanionsSheet(
+      context: context,
+      friends: _friends,
+      selected: _companionIds,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _companionIds
+        ..clear()
+        ..addAll(picked);
+    });
+  }
 
   Future<void> _pickDay() async {
     final picked = await showDatePicker(
@@ -232,6 +288,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
+          companionUserIds: _companionIds.toList(),
         );
         if (!mounted) return;
         context.go('/shops/$shopId');
@@ -247,6 +304,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
+          companionUserIds: _companionIds.toList(),
+          hangoutPrefill: widget.hangoutPrefill,
         );
         if (!mounted) return;
         context.go('/');
@@ -530,6 +589,23 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                         focusedBorder: InputBorder.none,
                         filled: false,
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _Section(
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(kWithAnyoneLabel),
+                      subtitle: _companionIds.isEmpty
+                          ? null
+                          : Text(
+                              withCompanionsCopy([
+                                for (final f in _friends)
+                                  if (_companionIds.contains(f.id)) f.username,
+                              ]),
+                            ),
+                      trailing: const Icon(Icons.group_add_outlined),
+                      onTap: _pickCompanions,
                     ),
                   ),
                 ],

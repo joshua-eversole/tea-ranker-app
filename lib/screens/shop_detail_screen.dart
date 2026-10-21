@@ -10,6 +10,7 @@ import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
 import '../widgets/topping_chip.dart';
+import '../widgets/with_companions_line.dart';
 import 'home_screen.dart';
 
 const kDeleteVisitConfirmMessage = 'Are you sure you want to delete this?';
@@ -437,6 +438,13 @@ class DrinkVisitCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (drink.companions.isNotEmpty)
+                    WithCompanionsLine(
+                      companions: drink.companions,
+                      onTapLinked: (c) => context.push(
+                        '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
+                      ),
+                    ),
                   if (drink.toppings.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(

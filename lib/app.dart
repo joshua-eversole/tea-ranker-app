@@ -14,6 +14,8 @@ import 'screens/profile_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/shop_detail_screen.dart';
 import 'screens/signup_screen.dart';
+import 'data/hangouts.dart';
+import 'screens/friend_hangout_drink_screen.dart';
 import 'screens/friend_taste_screen.dart';
 import 'screens/social_screen.dart';
 import 'theme/tokens.dart';
@@ -135,6 +137,16 @@ GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
                   repo: repo,
                   userId: state.pathParameters['userId']!,
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'drinks/:drinkId',
+                    builder: (_, state) => FriendHangoutDrinkScreen(
+                      repo: repo,
+                      userId: state.pathParameters['userId']!,
+                      drinkId: state.pathParameters['drinkId']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -147,7 +159,12 @@ GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
           ),
           GoRoute(
             path: '/log',
-            builder: (_, _) => DrinkLoggerScreen(repo: repo),
+            builder: (_, state) => DrinkLoggerScreen(
+              repo: repo,
+              hangoutPrefill: HangoutLogPrefill.fromQuery(
+                state.uri.queryParameters,
+              ),
+            ),
             routes: [
               GoRoute(
                 path: ':entryId',

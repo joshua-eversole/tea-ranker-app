@@ -12,6 +12,7 @@ import '../widgets/shop_name_text.dart';
 import '../widgets/taste_stats_card.dart';
 import '../widgets/tea_skeleton.dart';
 import '../widgets/topping_chip.dart';
+import '../widgets/with_companions_line.dart';
 import 'home_screen.dart';
 
 class FriendTasteScreen extends StatefulWidget {
@@ -195,6 +196,13 @@ class FriendDrinkCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (drink.companions.isNotEmpty)
+                    WithCompanionsLine(
+                      companions: drink.companions,
+                      onTapLinked: (c) => context.push(
+                        '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
+                      ),
+                    ),
                   if (drink.toppings.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(

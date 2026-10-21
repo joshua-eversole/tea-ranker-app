@@ -181,8 +181,10 @@ class DrinkEntryRow {
     required this.overallGrade,
     required this.notes,
     required this.loggedAt,
+    this.hangoutId,
     this.shop,
     this.toppings = const [],
+    this.companions = const [],
   });
 
   final String id;
@@ -197,8 +199,10 @@ class DrinkEntryRow {
   final String? overallGrade;
   final String? notes;
   final DateTime loggedAt;
+  final String? hangoutId;
   final ShopRow? shop;
   final List<ToppingRow> toppings;
+  final List<DrinkCompanionView> companions;
 
   LetterGrade? get letter {
     if (grade != null) return LetterGrade.fromPoints(grade!);
@@ -238,12 +242,18 @@ class DrinkEntryRow {
       overallGrade: map['overall_grade'] as String?,
       notes: map['notes'] as String?,
       loggedAt: DateTime.parse(map['logged_at'] as String).toLocal(),
+      hangoutId: map['hangout_id'] as String?,
       shop: shop,
       toppings: toppings,
     );
   }
 
-  DrinkEntryRow withRelations({ShopRow? shop, List<ToppingRow>? toppings}) {
+  DrinkEntryRow withRelations({
+    ShopRow? shop,
+    List<ToppingRow>? toppings,
+    List<DrinkCompanionView>? companions,
+    String? hangoutId,
+  }) {
     return DrinkEntryRow(
       id: id,
       userId: userId,
@@ -257,10 +267,28 @@ class DrinkEntryRow {
       overallGrade: overallGrade,
       notes: notes,
       loggedAt: loggedAt,
+      hangoutId: hangoutId ?? this.hangoutId,
       shop: shop ?? this.shop,
       toppings: toppings ?? this.toppings,
+      companions: companions ?? this.companions,
     );
   }
+}
+
+class DrinkCompanionView {
+  const DrinkCompanionView({
+    required this.userId,
+    required this.username,
+    this.peerDrinkId,
+    this.inviteStatus,
+  });
+
+  final String userId;
+  final String username;
+  final String? peerDrinkId;
+  final String? inviteStatus;
+
+  bool get hasLinkedPeer => peerDrinkId != null && peerDrinkId!.isNotEmpty;
 }
 
 class ShopFeedItem {

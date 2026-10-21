@@ -2,7 +2,7 @@
 
 A personal Pokédex for boba and tea. Log each drink (sugar, ice, toppings, letter grade) and see taste insights grouped by shop. Taste Profile lives on the Profile tab; **More taste details** opens extra stats in a sheet.
 
-V1 ships as a Flutter **PWA** (web first). **Social** searches usernames, sends friend requests, and shows a friend’s compact taste + last 3 drinks. Map is still brewing. The diary is per-user in Supabase until you accept a friend.
+V1 ships as a Flutter **PWA** (web first). **Social** searches usernames, sends friend requests, and shows a friend’s compact taste + last 3 drinks. **Hangouts** let you tag accepted friends on a drink (**With anyone?**) and invite them to log theirs. Map is still brewing. The diary is per-user in Supabase until you accept a friend.
 
 ## Open the live PWA
 
@@ -92,7 +92,7 @@ Add a localhost redirect only if you are testing confirmation against a local `f
 
 ## Layout
 
-Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus evenly spaced Home / Map / Social / Profile pills (Map uses a map icon and stays “Map is brewing.”). Home greets you by username and lists shops; Taste Profile stats and sugar/ice defaults live on Profile. **Social** is search + invitations + friends — tap a friend for their Taste Profile and last three drinks (read-only). Shop details have **Visits** and **Notes**. On Visits, the **⋮** menu on each drink **edits** (same logger form) or **deletes** (confirm first). Shop names show on one line as `English / 中文`. New users get bilingual Taiwan chain names; existing shops are never wiped. Chinese-only shop names are valid.
+Phone-width UI on a cream page. On a real phone / PWA it fills the viewport; on a wide desktop it caps at 480px so it does not become a stretched dashboard. Left **Add drink** slot (idle / pressed / watching) plus evenly spaced Home / Map / Social / Profile pills (Map uses a map icon and stays “Map is brewing.”). Home greets you by username and lists shops; Taste Profile stats and sugar/ice defaults live on Profile. **Social** is search + friend invitations + hangout invitations + friends — tap a friend for their Taste Profile and last three drinks (read-only). Logger **With anyone?** tags accepted friends. Visit cards show **With {username}**; a linked name opens that one drink. Shop details have **Visits** and **Notes**. On Visits, the **⋮** menu on each drink **edits** (same logger form) or **deletes** (confirm first). Shop names show on one line as `English / 中文`. New users get bilingual Taiwan chain names; existing shops are never wiped. Chinese-only shop names are valid.
 
 ## Shop names + defaults SQL (Supabase)
 
@@ -108,4 +108,8 @@ Then paste [`supabase/toppings_color_intensity.sql`](supabase/toppings_color_int
 
 ## Social SQL (Supabase)
 
-Paste [`supabase/friendships_status_and_rls.sql`](supabase/friendships_status_and_rls.sql) in the SQL editor (project owner) before using Social. Additive `friendships.status` (`pending` / `accepted` / `declined`), no self-friends, unique active pair, requester inserts, **target** accepts or declines. Signed-in username directory; accepted friends can read the other person’s drink rows needed for taste stats + last 3 drinks. Does not delete Joshua’s log. RLS stays JWT/`authenticated` only. Do not use `service_role`. Hangouts (`drink_companions`) are unused.
+Paste [`supabase/friendships_status_and_rls.sql`](supabase/friendships_status_and_rls.sql) in the SQL editor (project owner) before using Social. Additive `friendships.status` (`pending` / `accepted` / `declined`), no self-friends, unique active pair, requester inserts, **target** accepts or declines. Signed-in username directory; accepted friends can read the other person’s drink rows needed for taste stats + last 3 drinks. Does not delete Joshua’s log. RLS stays JWT/`authenticated` only. Do not use `service_role`.
+
+## Hangouts SQL (Supabase)
+
+Paste [`supabase/hangouts_companions.sql`](supabase/hangouts_companions.sql) in the SQL editor (project owner) before tagging friends. Additive `drink_entries.hangout_id` plus `drink_companions.peer_drink_id` / `invite_status` (`pending` / `accepted` / `declined` / `linked`). No trip table. Owner CRUD stays; tagged friends can SELECT their invite rows and UPDATE status / peer drink. Does not delete Joshua’s log. No `service_role`.
