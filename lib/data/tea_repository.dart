@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../grading/grade.dart';
 import '../theme/topping_colors.dart';
 import 'models.dart';
+import 'social.dart';
 import 'taste_stats.dart';
 
 class TeaRepository extends ChangeNotifier {
@@ -68,7 +69,7 @@ class TeaRepository extends ChangeNotifier {
   Future<void> seedToppingsIfMissing() async {
     final uid = userId;
     if (uid == null) return;
-    final rows = await _client.from('toppings').select();
+    final rows = await _client.from('toppings').select().eq('user_id', uid);
     final existing = (rows as List)
         .map((e) => ToppingRow.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
@@ -112,7 +113,7 @@ class TeaRepository extends ChangeNotifier {
   Future<void> seedShopsIfMissing() async {
     final uid = userId;
     if (uid == null) return;
-    final rows = await _client.from('shops').select();
+    final rows = await _client.from('shops').select().eq('user_id', uid);
     final existing = (rows as List)
         .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
@@ -151,12 +152,19 @@ class TeaRepository extends ChangeNotifier {
       try {
         entryRows = await _client
             .from('drink_entries')
-            .select('*, shops(*), drink_toppings(*, toppings(*))');
+            .select('*, shops(*), drink_toppings(*, toppings(*))')
+            .eq('user_id', uid);
       } catch (_) {
-        entryRows = await _client.from('drink_entries').select();
+        entryRows = await _client
+            .from('drink_entries')
+            .select()
+            .eq('user_id', uid);
       }
-      final shopRows = await _client.from('shops').select();
-      final toppingRows = await _client.from('toppings').select();
+      final shopRows = await _client.from('shops').select().eq('user_id', uid);
+      final toppingRows = await _client
+          .from('toppings')
+          .select()
+          .eq('user_id', uid);
       final joinRows = await _client.from('drink_toppings').select();
       final profileRow = await _client
           .from('profiles')
@@ -536,6 +544,108 @@ class TeaRepository extends ChangeNotifier {
         .update({'notes': (text == null || text.isEmpty) ? null : text})
         .eq('id', shopId);
     await refresh();
+  }
+
+  static const _friendDrinkSelect =
+      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
+
+  Future<List<DirectoryProfile>> loadDirectory() async {
+    final rows = await _client.from('profiles').select('id, username');
+    return [
+      for (final raw in rows as List)
+        DirectoryProfile.fromMap(Map<String, dynamic>.from(raw as Map)),
+    ];
+  }
+
+  Future<List<FriendshipRow>> loadFriendships() async {
+    final rows = await _client.from('friendships').select();
+    return [
+      for (final raw in rows as List)
+        FriendshipRow.fromMap(Map<String, dynamic>.from(raw as Map)),
+    ];
+  }
+
+  Future<void> sendFriendRequest(String friendId) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    if (uid == friendId) {
+      throw StateError('You can’t friend yourself.');
+    }
+    try {
+      await _client.from('friendships').insert({
+        'user_id': uid,
+        'friend_id': friendId,
+        'status': 'pending',
+      });
+    } catch (_) {
+      await _client
+          .from('friendships')
+          .update({'status': 'pending'})
+          .eq('user_id', uid)
+          .eq('friend_id', friendId)
+          .eq('status', 'declined');
+    }
+  }
+
+  Future<void> respondToInvite({
+    required String requesterId,
+    required FriendshipStatus status,
+  }) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    if (status != FriendshipStatus.accepted &&
+        status != FriendshipStatus.declined) {
+      throw ArgumentError('Invite response must be accept or decline');
+    }
+    await _client
+        .from('friendships')
+        .update({'status': status.name})
+        .eq('user_id', requesterId)
+        .eq('friend_id', uid)
+        .eq('status', 'pending');
+  }
+
+  Future<TasteProfile> fetchFriendTaste(String friendId) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    if (uid == friendId) {
+      throw StateError('Open Profile for your own taste.');
+    }
+    final edges = await loadFriendships();
+    if (friendRelation(me: uid, other: friendId, rows: edges) !=
+        FriendRelation.accepted) {
+      throw StateError('You can only view a friend’s log.');
+    }
+
+    dynamic entryRows;
+    try {
+      entryRows = await _client
+          .from('drink_entries')
+          .select(_friendDrinkSelect)
+          .eq('user_id', friendId)
+          .order('logged_at', ascending: false);
+    } catch (_) {
+      entryRows = await _client
+          .from('drink_entries')
+          .select(
+            'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at',
+          )
+          .eq('user_id', friendId)
+          .order('logged_at', ascending: false);
+    }
+
+    var shopRows = await _client.from('shops').select().eq('user_id', friendId);
+    final shops = (shopRows as List)
+        .map((e) => ShopRow.fromMap(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final shopById = {for (final s in shops) s.id: s};
+
+    final entries = (entryRows as List).map((e) {
+      final row = DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
+      return row.withRelations(shop: shopById[row.shopId] ?? row.shop);
+    }).toList();
+
+    return buildTasteProfile(entries, shops);
   }
 
   Future<void> signOut() async {

@@ -108,8 +108,13 @@ class _HomeEmpty extends StatelessWidget {
 }
 
 class HomeLoadError extends StatelessWidget {
-  const HomeLoadError({super.key, required this.onRetry});
+  const HomeLoadError({
+    super.key,
+    required this.onRetry,
+    this.message = 'Couldn’t load your log.',
+  });
   final VoidCallback onRetry;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -120,10 +125,10 @@ class HomeLoadError extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Couldn’t load your log.',
+              Text(
+                message,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 18,
                 ),
