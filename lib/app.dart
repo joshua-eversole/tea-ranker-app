@@ -14,6 +14,7 @@ import 'screens/profile_screen.dart';
 import 'screens/setup_screen.dart';
 import 'screens/shop_detail_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/friend_taste_screen.dart';
 import 'screens/social_screen.dart';
 import 'theme/tokens.dart';
 import 'widgets/app_shell.dart';
@@ -118,17 +119,24 @@ GoRouter _buildRouter(TeaRepository repo, AuthRefresh auth) {
           ),
           GoRoute(
             path: '/map',
-            pageBuilder: (_, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const MapScreen(),
-            ),
+            pageBuilder: (_, state) =>
+                NoTransitionPage(key: state.pageKey, child: const MapScreen()),
           ),
           GoRoute(
             path: '/social',
             pageBuilder: (_, state) => NoTransitionPage(
               key: state.pageKey,
-              child: const SocialScreen(),
+              child: SocialScreen(repo: repo),
             ),
+            routes: [
+              GoRoute(
+                path: 'friends/:userId',
+                builder: (_, state) => FriendTasteScreen(
+                  repo: repo,
+                  userId: state.pathParameters['userId']!,
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: '/profile',

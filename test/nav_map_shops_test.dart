@@ -21,6 +21,7 @@ void main() {
       expect(shellTabIndex('/'), 0);
       expect(shellTabIndex('/map'), 1);
       expect(shellTabIndex('/social'), 2);
+      expect(shellTabIndex('/social/friends/abc'), 2);
       expect(shellTabIndex('/profile'), 3);
       expect(shellTabIndex('/log'), -1);
       expect(shellTabIndex('/shops/abc'), -1);
