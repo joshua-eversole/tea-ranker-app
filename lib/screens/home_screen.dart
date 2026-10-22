@@ -231,6 +231,7 @@ class _HomeLoaded extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
+        clipBehavior: Clip.none,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Text(welcome, style: Theme.of(context).textTheme.titleLarge),
@@ -300,8 +301,13 @@ class _ShopCard extends StatelessWidget {
             left: -kHomeLogoCircleLeftShift,
             top: 0,
             bottom: 0,
-            child: Align(
+            width: kHomeLogoCircleSize,
+            child: OverflowBox(
               alignment: Alignment.centerLeft,
+              minWidth: kHomeLogoCircleSize,
+              maxWidth: kHomeLogoCircleSize,
+              minHeight: kHomeLogoCircleSize,
+              maxHeight: kHomeLogoCircleSize,
               child: IgnorePointer(
                 child: ShopLogoCircle(
                   size: kHomeLogoCircleSize,

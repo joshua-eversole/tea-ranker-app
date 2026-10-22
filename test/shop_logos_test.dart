@@ -165,6 +165,44 @@ void main() {
     );
   });
 
+  testWidgets('home circle stays 96x96 inside a short row', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(
+          backgroundColor: AppColors.cream,
+          body: Center(
+            child: SizedBox(
+              width: 320,
+              height: 48,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  OverflowBox(
+                    minWidth: kHomeLogoCircleSize,
+                    maxWidth: kHomeLogoCircleSize,
+                    minHeight: kHomeLogoCircleSize,
+                    maxHeight: kHomeLogoCircleSize,
+                    child: ShopLogoCircle(
+                      size: kHomeLogoCircleSize,
+                      band: bandForAverage(5),
+                      showBobaIcon: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final disc = tester.getSize(find.byKey(const ValueKey('shopLogoDisc')));
+    expect(disc.width, kHomeLogoCircleSize);
+    expect(disc.height, kHomeLogoCircleSize);
+    expect(disc.width, disc.height);
+    expect(find.byType(BobaCupIcon), findsOneWidget);
+  });
+
   testWidgets('home circle without logo is deeper wash plus boba icon', (
     tester,
   ) async {
