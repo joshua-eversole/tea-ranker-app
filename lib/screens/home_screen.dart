@@ -262,7 +262,7 @@ class _ShopCard extends StatelessWidget {
       gradeMark: item.band?.label,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.centerLeft,
@@ -310,7 +310,9 @@ class _ShopCard extends StatelessWidget {
                   band: item.band,
                   brand: brand,
                   logoUrl: repo.publicLogoUrl(brand),
-                  fill: wash,
+                  showBobaIcon: true,
+                  fill: homeLogoCircleFill(item.band?.label),
+                  iconColor: wash,
                 ),
               ),
             ),
