@@ -11,8 +11,8 @@ import '../widgets/taste_stats_card.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
-/// Hardcoded for now (Joshua: PR 17).
-const kAppDisplayVersion = '0.17';
+/// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
+const kAppDisplayVersion = 'v. 0.19';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
