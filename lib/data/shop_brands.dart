@@ -12,8 +12,11 @@ const kShopLogosSqlHint =
     'Couldn’t save shop logo settings. Check shop_brands selected_hex / logo_path.';
 const kShopLogosBucket = 'shop-logos';
 
-/// Left Home circle is slightly larger than the shop row (vertical overflow OK).
-const kHomeLogoCircleSize = 80.0;
+/// Left Home circle overhangs the shop row (row height stays the same).
+const kHomeLogoCircleSize = 96.0;
+
+/// Nudge left so the circle covers the row strip beside the picture.
+const kHomeLogoCircleLeftShift = 10.0;
 
 /// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
 const kHomeLogoCircleWashMix = 0.30;
@@ -28,7 +31,8 @@ const kLogoWashMixFloor = 0.22;
 const kHomeLogoCircleGap = 12.0;
 
 /// Left inset so the circle cannot cover title or visit count.
-const kHomeLogoTextInset = kHomeLogoCircleSize + kHomeLogoCircleGap;
+const kHomeLogoTextInset =
+    kHomeLogoCircleSize - kHomeLogoCircleLeftShift + kHomeLogoCircleGap;
 
 class ShopBrand {
   const ShopBrand({

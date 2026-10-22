@@ -139,9 +139,13 @@ void main() {
     expect(kAddOrReplaceLogoTooltip, 'Add or replace logo');
   });
 
-  test('home circle is 80 and leaves room for the name', () {
-    expect(kHomeLogoCircleSize, 80);
-    expect(kHomeLogoTextInset, kHomeLogoCircleSize + kHomeLogoCircleGap);
+  test('home circle is 96, overhangs, shifted left, names inset', () {
+    expect(kHomeLogoCircleSize, 96);
+    expect(kHomeLogoCircleLeftShift, 10);
+    expect(
+      kHomeLogoTextInset,
+      kHomeLogoCircleSize - kHomeLogoCircleLeftShift + kHomeLogoCircleGap,
+    );
   });
 
   test('home circle fill is a step darker than the row wash, not the disc', () {

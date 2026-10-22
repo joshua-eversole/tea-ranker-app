@@ -296,7 +296,10 @@ class _ShopCard extends StatelessWidget {
               ),
             ),
           ),
-          Positioned.fill(
+          Positioned(
+            left: -kHomeLogoCircleLeftShift,
+            top: 0,
+            bottom: 0,
             child: Align(
               alignment: Alignment.centerLeft,
               child: IgnorePointer(
