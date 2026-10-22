@@ -64,25 +64,41 @@ class ShopLogoCircle extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  /// Square disc that ignores a short parent max-height (Home row).
+  Widget _squareDisc() {
     final url = logoUrl;
-    final child = SizedBox(
-      width: size,
-      height: size,
-      child: ClipOval(
-        child: url != null && url.isNotEmpty
-            ? Image.network(
-                url,
-                fit: BoxFit.cover,
-                width: size,
-                height: size,
-                errorBuilder: (_, _, _) => _placeholderChild(),
-              )
-            : _placeholderChild(),
+    final image = url != null && url.isNotEmpty
+        ? SizedBox.square(
+            dimension: size,
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              width: size,
+              height: size,
+              alignment: Alignment.center,
+              errorBuilder: (_, _, _) => _placeholderChild(),
+            ),
+          )
+        : _placeholderChild();
+    return OverflowBox(
+      alignment: Alignment.center,
+      minWidth: size,
+      maxWidth: size,
+      minHeight: size,
+      maxHeight: size,
+      child: SizedBox(
+        key: const ValueKey('shopLogoDisc'),
+        width: size,
+        height: size,
+        child: ClipOval(child: image),
       ),
     );
-    if (onTap == null) return child;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final disc = _squareDisc();
+    if (onTap == null) return disc;
     return Tooltip(
       message: tooltip ?? kAddOrReplaceLogoTooltip,
       child: Material(
@@ -90,7 +106,7 @@ class ShopLogoCircle extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: child,
+          child: disc,
         ),
       ),
     );
