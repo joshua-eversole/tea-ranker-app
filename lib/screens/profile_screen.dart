@@ -11,6 +11,9 @@ import '../widgets/taste_stats_card.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
+/// Hardcoded for now (Joshua: PR 17).
+const kAppDisplayVersion = '0.17';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
 
@@ -28,7 +31,19 @@ class ProfileScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              Text('Profile', style: Theme.of(context).textTheme.titleLarge),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Profile',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const ProfileVersionLabel(),
+                ],
+              ),
               const SizedBox(height: 24),
               Card(
                 child: Padding(
@@ -108,6 +123,23 @@ class ProfileScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class ProfileVersionLabel extends StatelessWidget {
+  const ProfileVersionLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      kAppDisplayVersion,
+      style: TextStyle(
+        color: AppColors.chocolate.withValues(alpha: 0.7),
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        height: 1,
+      ),
     );
   }
 }
