@@ -69,72 +69,57 @@ class ShopDetailScreen extends StatefulWidget {
 }
 
 class _ShopDetailScreenState extends State<ShopDetailScreen> {
-  int _tab = 0;
-  final _notes = TextEditingController();
-  String? _notesShopId;
-  bool _savingNotes = false;
-  String? _notesError;
-
-  @override
-  void dispose() {
-    _notes.dispose();
-    super.dispose();
-  }
-
-  void _syncNotes(ShopRow shop) {
-    if (_notesShopId == shop.id) return;
-    _notesShopId = shop.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _notesShopId != shop.id) return;
-      _notes.text = shop.notes ?? '';
-    });
-  }
-
-  Future<void> _saveNotes(ShopRow shop) async {
-    setState(() {
-      _savingNotes = true;
-      _notesError = null;
-    });
+  Future<void> _openChromeSheet(ShopRow shop) async {
+    final result = await showShopChromeSheet(
+      context: context,
+      shop: shop,
+      brand: widget.repo.brandFor(shop),
+    );
+    if (result == null || !mounted) return;
     try {
-      await widget.repo.updateShopNotes(shopId: shop.id, notes: _notes.text);
-      if (mounted) {
-        setState(() => _savingNotes = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _savingNotes = false;
-          _notesError =
-              'Couldn’t save shop notes. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.';
-        });
-      }
+      await widget.repo.updateShopNames(
+        shopId: shop.id,
+        name: result.name,
+        nameZh: result.nameZh,
+      );
+      if (!mounted) return;
+      final latest = widget.repo.feedItem(shop.id)?.shop ?? shop;
+      await widget.repo.saveShopBrandSettings(
+        shop: latest,
+        bytes: result.bytes,
+        contentType: result.contentType,
+        paletteHex: result.paletteHex,
+        selectedHex: result.selectedHex,
+        tintHome: result.tintHome,
+        tintStrength: result.tintStrength,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t save shop settings. $kShopLogosSqlHint'),
+        ),
+      );
     }
   }
 
-  Future<void> _editNames(ShopRow shop) async {
-    final name = TextEditingController(text: shop.name ?? '');
-    final zh = TextEditingController(text: shop.nameZh ?? '');
+  Future<void> _editNotes(ShopRow shop) async {
+    final notes = TextEditingController(text: shop.notes ?? '');
     try {
       final saved = await showDialog<bool>(
         context: context,
         builder: (context) {
           return AlertDialog(
             backgroundColor: AppColors.cream,
-            title: const Text('Shop names'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'English'),
-                  textCapitalization: TextCapitalization.words,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: zh,
-                  decoration: const InputDecoration(labelText: '中文'),
-                ),
-              ],
+            title: const Text(kShopNotesTitle),
+            content: TextField(
+              controller: notes,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                hintText: kAddShopNotesHint,
+                alignLabelWithHint: true,
+              ),
             ),
             actions: [
               TextButton(
@@ -142,12 +127,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () {
-                  if (name.text.trim().isEmpty && zh.text.trim().isEmpty) {
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
+                onPressed: () => Navigator.pop(context, true),
                 child: const Text('Save'),
               ),
             ],
@@ -155,39 +135,18 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
         },
       );
       if (saved != true || !mounted) return;
-      await widget.repo.updateShopNames(
-        shopId: shop.id,
-        name: name.text,
-        nameZh: zh.text,
-      );
-    } finally {
-      name.dispose();
-      zh.dispose();
-    }
-  }
-
-  Future<void> _openLogoSheet(ShopRow shop) async {
-    final result = await showShopLogoSheet(
-      context: context,
-      brand: widget.repo.brandFor(shop),
-    );
-    if (result == null || !mounted) return;
-    try {
-      await widget.repo.saveShopBrandSettings(
-        shop: shop,
-        bytes: result.bytes,
-        contentType: result.contentType,
-        paletteHex: result.paletteHex,
-        selectedHex: result.selectedHex,
-        tintHome: result.tintHome,
-      );
+      await widget.repo.updateShopNotes(shopId: shop.id, notes: notes.text);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Couldn’t save that logo. $kShopLogosSqlHint'),
+          content: Text(
+            'Couldn’t save shop notes. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.',
+          ),
         ),
       );
+    } finally {
+      notes.dispose();
     }
   }
 
@@ -237,7 +196,6 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
             break;
         }
         final feed = item!;
-        _syncNotes(feed.shop);
         final brand = widget.repo.brandFor(feed.shop);
         return ColoredBox(
           color: shopDetailsPageWash(brand: brand, band: feed.band),
@@ -260,10 +218,15 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                         icon: const Icon(Icons.arrow_back),
                       ),
                       Expanded(child: ShopNameText(shop: feed.shop)),
-                      IconButton(
-                        tooltip: 'Edit names',
-                        onPressed: () => _editNames(feed.shop),
-                        icon: const Icon(Icons.edit_outlined),
+                      SizedBox(
+                        width: AppLayout.minTap,
+                        height: AppLayout.minTap,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          tooltip: kEditShopTooltip,
+                          onPressed: () => _openChromeSheet(feed.shop),
+                          icon: const Icon(Icons.edit_outlined),
+                        ),
                       ),
                       ShopLogoCircle(
                         size: AppLayout.shopHeaderGradeSize,
@@ -271,8 +234,6 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                         brand: brand,
                         logoUrl: widget.repo.publicLogoUrl(brand),
                         showGradeMark: true,
-                        tooltip: kAddOrReplaceLogoTooltip,
-                        onTap: () => _openLogoSheet(feed.shop),
                       ),
                     ],
                   ),
@@ -287,46 +248,25 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     children: [
-                      _DetailTab(
-                        label: 'Visits',
-                        selected: _tab == 0,
-                        onTap: () => setState(() => _tab = 0),
+                      ShopNotesBlock(
+                        notes: feed.shop.notes,
+                        onTap: () => _editNotes(feed.shop),
                       ),
-                      const SizedBox(width: 8),
-                      _DetailTab(
-                        label: 'Notes',
-                        selected: _tab == 1,
-                        onTap: () => setState(() => _tab = 1),
-                      ),
+                      const SizedBox(height: 12),
+                      for (final drink in drinks) ...[
+                        DrinkVisitCard(
+                          drink: drink,
+                          onEdit: () => _editVisit(drink),
+                          onDelete: () => _deleteVisit(drink),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                     ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: _tab == 0
-                      ? ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          children: [
-                            for (final drink in drinks) ...[
-                              DrinkVisitCard(
-                                drink: drink,
-                                onEdit: () => _editVisit(drink),
-                                onDelete: () => _deleteVisit(drink),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ],
-                        )
-                      : _ShopNotesTab(
-                          controller: _notes,
-                          saving: _savingNotes,
-                          error: _notesError,
-                          onSave: () => _saveNotes(feed.shop),
-                        ),
                 ),
               ],
             ),
@@ -337,82 +277,37 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
   }
 }
 
-class _DetailTab extends StatelessWidget {
-  const _DetailTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+class ShopNotesBlock extends StatelessWidget {
+  const ShopNotesBlock({super.key, required this.notes, required this.onTap});
 
-  final String label;
-  final bool selected;
+  final String? notes;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final text = notes?.trim();
+    final empty = text == null || text.isEmpty;
     return Material(
-      color: selected ? AppColors.boba : AppColors.seed,
-      borderRadius: BorderRadius.circular(AppRadii.chip),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.chip),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : AppColors.boba,
-              fontWeight: FontWeight.w600,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppLayout.minTap),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+            child: Text(
+              empty ? kAddShopNotesHint : text,
+              style: TextStyle(
+                color: AppColors.chocolate,
+                fontSize: 13,
+                fontStyle: empty ? FontStyle.italic : FontStyle.normal,
+                height: 1.3,
+              ),
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ShopNotesTab extends StatelessWidget {
-  const _ShopNotesTab({
-    required this.controller,
-    required this.saving,
-    required this.error,
-    required this.onSave,
-  });
-
-  final TextEditingController controller;
-  final bool saving;
-  final String? error;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        const Text(
-          'Notes about this shop — parking, regular order, hours. Drink notes stay on each log.',
-          style: TextStyle(color: AppColors.chocolate),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: controller,
-          minLines: 6,
-          maxLines: 12,
-          decoration: const InputDecoration(
-            hintText: 'Add a shop note',
-            alignLabelWithHint: true,
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: 12),
-          Text(error!, style: const TextStyle(color: AppColors.gradeD)),
-        ],
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: saving ? null : onSave,
-          child: Text(saving ? 'Saving…' : 'Save notes'),
-        ),
-      ],
     );
   }
 }

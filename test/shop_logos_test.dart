@@ -24,6 +24,7 @@ ShopBrand brand({
   String? selectedHex,
   List<String> paletteHex = const [],
   bool tintHome = true,
+  int tintStrength = kDefaultTintStrength,
 }) => ShopBrand(
   id: 'b',
   name: name,
@@ -32,6 +33,7 @@ ShopBrand brand({
   selectedHex: selectedHex,
   paletteHex: paletteHex,
   tintHome: tintHome,
+  tintStrength: tintStrength,
 );
 
 void main() {
@@ -64,7 +66,12 @@ void main() {
     'tint defaults on per brand; logo wash keeps the chosen hue visible',
     () {
       expect(brand().tintHome, isTrue);
+      expect(brand().tintStrength, kDefaultTintStrength);
       expect(ShopBrand.fromMap({'id': 'b', 'name': 'x'}).tintHome, isTrue);
+      expect(
+        ShopBrand.fromMap({'id': 'b', 'name': 'x'}).tintStrength,
+        kDefaultTintStrength,
+      );
       ProfileRow.fromMap({'id': 'u', 'username': 'j'});
       final blue = logoPageWash('#1565C0');
       expect(blue, isNot(AppColors.cream));
@@ -141,6 +148,36 @@ void main() {
     expect(kAddOrReplaceLogoTooltip, 'Add or replace logo');
     expect(kCustomColorLabel, 'Custom');
     expect(kCustomRgbLabel, 'Custom RGB');
+    expect(kTintStrengthLabel, 'Tint strength');
+    expect(kEditShopTooltip, 'Edit shop');
+    expect(kEditShopSheetTitle, 'Edit shop');
+    expect(
+      kAddShopNotesHint,
+      'Click here to add notes about this shop',
+    );
+  });
+
+  test('tint strength 0 is barely there; 40 matches kLogoWashMix; 100 stronger', () {
+    expect(kDefaultTintStrength, 40);
+    expect(logoWashMixFromStrength(40), kLogoWashMix);
+    expect(logoWashMixFromStrength(0), kLogoWashBarelyMix);
+    expect(logoWashMixFromStrength(0), greaterThan(0));
+    expect(logoWashMixFromStrength(100), 1.0);
+    final hue = '#1565C0';
+    final light = logoPageWash(hue, tintStrength: 0);
+    final mid = logoPageWash(hue, tintStrength: 40);
+    final strong = logoPageWash(hue, tintStrength: 100);
+    expect(light, isNot(AppColors.cream));
+    expect(light, isNot(mid));
+    expect(strong, isNot(mid));
+    expect(
+      ShopBrand.fromMap({
+        'id': 'b',
+        'name': 'x',
+        'tint_strength': 80,
+      }).tintStrength,
+      80,
+    );
   });
 
   test('null selected_hex still washes from palette', () {
@@ -322,13 +359,12 @@ void main() {
                       band: bandForAverage(5),
                       brand: brand(logoPath: 'p', selectedHex: null),
                       showGradeMark: true,
-                      onTap: () {},
                     ),
                   ],
                 ),
               ),
               const Text('2 visits'),
-              const Expanded(child: Text('Visits')),
+              const Expanded(child: Text('visits list')),
             ],
           ),
         ),
@@ -337,8 +373,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('50 Lan / 五十嵐'), findsOneWidget);
     expect(find.text('2 visits'), findsOneWidget);
-    expect(find.text('Visits'), findsOneWidget);
-    expect(find.byTooltip(kAddOrReplaceLogoTooltip), findsOneWidget);
+    expect(find.byTooltip(kAddOrReplaceLogoTooltip), findsNothing);
     expect(find.text('S'), findsOneWidget);
   });
 
@@ -362,9 +397,11 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    expect(find.text(kEditShopSheetTitle), findsOneWidget);
     expect(find.text(kPickMainColorTitle), findsOneWidget);
     expect(find.text(kAddOrReplaceLogoTooltip), findsOneWidget);
     expect(find.text(kTintHomeRowLabel), findsOneWidget);
+    expect(find.text(kTintStrengthLabel), findsOneWidget);
     expect(
       tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
       isTrue,
@@ -439,5 +476,39 @@ void main() {
     expect(result!.bytes, isNull);
     expect(result!.selectedHex, '#1565C0');
     expect(result!.paletteHex, ['#1565C0', '#E6B422']);
+    expect(result!.tintStrength, kDefaultTintStrength);
+  });
+
+  testWidgets('pencil sheet includes names, logo, color, tint, and strength', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () => showShopChromeSheet(
+                  context: context,
+                  shop: shop(name: '50 Lan', nameZh: '五十嵐'),
+                  brand: brand(logoPath: 'p', selectedHex: '#1565C0'),
+                ),
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('中文'), findsOneWidget);
+    expect(find.text(kAddOrReplaceLogoTooltip), findsOneWidget);
+    expect(find.text(kPickMainColorTitle), findsOneWidget);
+    expect(find.text(kCustomRgbLabel), findsOneWidget);
+    expect(find.text(kTintHomeRowLabel), findsOneWidget);
+    expect(find.text(kTintStrengthLabel), findsOneWidget);
   });
 }

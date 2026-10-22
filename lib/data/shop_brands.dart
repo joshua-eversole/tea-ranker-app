@@ -6,10 +6,15 @@ import '../theme/topping_colors.dart';
 import 'models.dart';
 
 const kTintHomeRowLabel = 'Tint Home row';
+const kTintStrengthLabel = 'Tint strength';
 const kPickMainColorTitle = 'Pick the main color';
 const kAddOrReplaceLogoTooltip = 'Add or replace logo';
 const kCustomColorLabel = 'Custom';
 const kCustomRgbLabel = 'Custom RGB';
+const kEditShopTooltip = 'Edit shop';
+const kEditShopSheetTitle = 'Edit shop';
+const kAddShopNotesHint = 'Click here to add notes about this shop';
+const kShopNotesTitle = 'Shop notes';
 const kShopLogosSqlHint =
     'Couldn’t save shop logo settings. Check shop_brands selected_hex / logo_path.';
 const kShopLogosBucket = 'shop-logos';
@@ -23,11 +28,29 @@ const kHomeLogoCircleLeftShift = 10.0;
 /// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
 const kHomeLogoCircleWashMix = 0.30;
 
-/// Logo page/row wash — stronger than grade wash so the chosen hue reads.
+/// Logo page/row wash at default tint strength (40 → mix 0.40).
 const kLogoWashMix = 0.40;
+
+/// Stored `shop_brands.tint_strength` when the column is missing.
+const kDefaultTintStrength = 40;
+
+/// Mix at tint strength 0 — a whisper of hue, not plain cream.
+const kLogoWashBarelyMix = 0.05;
 
 /// Never lift logo wash all the way to cream (that looked like grade-only).
 const kLogoWashMixFloor = 0.22;
+
+int snapTintStrength(int? value) {
+  if (value == null) return kDefaultTintStrength;
+  return value.clamp(0, 100);
+}
+
+/// 0 → barely there; 40 → [kLogoWashMix]; 100 → full hue (then readable floor).
+double logoWashMixFromStrength(int? strength) {
+  final t = snapTintStrength(strength);
+  if (t <= 0) return kLogoWashBarelyMix;
+  return t / 100.0;
+}
 
 /// Gap between the Home circle and the shop name / visit count.
 const kHomeLogoCircleGap = 12.0;
@@ -45,6 +68,7 @@ class ShopBrand {
     this.paletteHex = const [],
     this.selectedHex,
     this.tintHome = true,
+    this.tintStrength = kDefaultTintStrength,
   });
 
   final String id;
@@ -54,6 +78,7 @@ class ShopBrand {
   final List<String> paletteHex;
   final String? selectedHex;
   final bool tintHome;
+  final int tintStrength;
 
   String? get englishName => trimToNull(name);
   String? get chineseName => trimToNull(nameZh);
@@ -101,6 +126,7 @@ class ShopBrand {
       paletteHex: palette,
       selectedHex: selected,
       tintHome: _asBool(map['tint_home']) ?? true,
+      tintStrength: snapTintStrength((map['tint_strength'] as num?)?.toInt()),
     );
   }
 }
@@ -127,11 +153,14 @@ ShopBrand? brandForShop(ShopRow shop, Iterable<ShopBrand> brands) {
   return null;
 }
 
-/// Mix [selectedHex] toward cream. Stronger than grade wash so the hue shows;
-/// lift (more cream) only down to [kLogoWashMixFloor], never to plain cream.
-Color logoPageWash(String? selectedHex) {
+/// Mix [selectedHex] toward cream. [tintStrength] 0–100; lift (more cream)
+/// only down to [kLogoWashMixFloor] so chocolate type stays readable.
+Color logoPageWash(
+  String? selectedHex, {
+  int tintStrength = kDefaultTintStrength,
+}) {
   final hue = colorFromHex(selectedHex, fallback: AppColors.seed);
-  var mix = kLogoWashMix;
+  var mix = logoWashMixFromStrength(tintStrength);
   var wash = Color.lerp(AppColors.cream, hue, mix)!;
   final creamContrast = contrastRatio(AppColors.cream, AppColors.chocolate);
   while (contrastRatio(wash, AppColors.chocolate) < creamContrast * 0.9 &&
@@ -148,7 +177,7 @@ Color shopDetailsPageWash({
 }) {
   final hex = brand?.effectiveSelectedHex;
   if (brand != null && brand.hasLogo && hex != null) {
-    return logoPageWash(hex);
+    return logoPageWash(hex, tintStrength: brand.tintStrength);
   }
   return shopPageWash(band);
 }
@@ -156,7 +185,7 @@ Color shopDetailsPageWash({
 Color? homeRowWash({required ShopBrand? brand, required String? gradeMark}) {
   final hex = brand?.effectiveSelectedHex;
   if (brand != null && brand.hasLogo && hex != null && brand.tintHome) {
-    return logoPageWash(hex);
+    return logoPageWash(hex, tintStrength: brand.tintStrength);
   }
   return gradeWash(gradeMark);
 }
