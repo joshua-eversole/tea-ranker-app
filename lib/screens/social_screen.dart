@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/hangouts.dart';
 import '../data/social.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
@@ -30,6 +31,7 @@ class _SocialScreenState extends State<SocialScreen> {
   Object? _error;
   List<DirectoryProfile> _directory = const [];
   List<FriendshipRow> _friendships = const [];
+  List<HangoutInvite> _hangouts = const [];
   String? _busyId;
 
   @override
@@ -52,10 +54,12 @@ class _SocialScreenState extends State<SocialScreen> {
     try {
       final directory = await widget.repo.loadDirectory();
       final friendships = await widget.repo.loadFriendships();
+      final hangouts = await widget.repo.loadHangoutInvites();
       if (!mounted) return;
       setState(() {
         _directory = directory;
         _friendships = friendships;
+        _hangouts = hangouts;
         _loading = false;
       });
     } catch (e) {
@@ -115,13 +119,41 @@ class _SocialScreenState extends State<SocialScreen> {
   Future<void> _reloadQuiet() async {
     final directory = await widget.repo.loadDirectory();
     final friendships = await widget.repo.loadFriendships();
+    final hangouts = await widget.repo.loadHangoutInvites();
     if (!mounted) return;
     setState(() {
       _directory = directory;
       _friendships = friendships;
+      _hangouts = hangouts;
       _loading = false;
       _error = null;
     });
+  }
+
+  Future<void> _respondHangout(HangoutInvite invite, bool accept) async {
+    setState(() => _busyId = 'h-${invite.companion.drinkEntryId}');
+    try {
+      if (accept) {
+        if (!mounted) return;
+        context.push(invite.prefill.toLocation());
+      } else {
+        await widget.repo.declineHangoutInvite(invite.companion.drinkEntryId);
+        await _reloadQuiet();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            accept
+                ? 'Couldn’t open that hangout.'
+                : 'Couldn’t decline that invitation.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
   }
 
   @override
@@ -180,12 +212,12 @@ class _SocialScreenState extends State<SocialScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (invites.isEmpty)
+          if (invites.isEmpty && _hangouts.isEmpty)
             const Text(
               kNoInvitationsCopy,
               style: TextStyle(color: AppColors.chocolate),
             )
-          else
+          else ...[
             for (final invite in invites)
               _InviteTile(
                 username: _byId[invite.userId]?.username ?? 'Someone',
@@ -195,6 +227,22 @@ class _SocialScreenState extends State<SocialScreen> {
                 onDecline: () =>
                     _respond(invite.userId, FriendshipStatus.declined),
               ),
+            if (_hangouts.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                kHangoutInvitationsTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final hangout in _hangouts)
+                _HangoutInviteTile(
+                  invite: hangout,
+                  busy: _busyId == 'h-${hangout.companion.drinkEntryId}',
+                  onAccept: () => _respondHangout(hangout, true),
+                  onDecline: () => _respondHangout(hangout, false),
+                ),
+            ],
+          ],
           const SizedBox(height: 28),
           Text(kFriendsTitle, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -311,6 +359,60 @@ class _SearchTile extends StatelessWidget {
           child: Text(busy ? kSendingRequestLabel : kSendFriendRequestLabel),
         ),
       },
+    );
+  }
+}
+
+class _HangoutInviteTile extends StatelessWidget {
+  const _HangoutInviteTile({
+    required this.invite,
+    required this.busy,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final HangoutInvite invite;
+  final bool busy;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = MaterialLocalizations.of(
+      context,
+    ).formatMediumDate(invite.localDay);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              invite.senderUsername.isEmpty ? 'Someone' : invite.senderUsername,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (invite.shopName.isNotEmpty)
+              Text(
+                invite.shopName,
+                style: const TextStyle(color: AppColors.chocolate),
+              ),
+            Text(date, style: const TextStyle(color: AppColors.chocolate)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: busy ? null : onDecline,
+                  child: const Text(kDeclineInviteLabel),
+                ),
+                FilledButton(
+                  onPressed: busy ? null : onAccept,
+                  child: const Text(kAcceptInviteLabel),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
