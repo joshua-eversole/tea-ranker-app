@@ -6,6 +6,7 @@ import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/theme/topping_colors.dart';
 import 'package:tea_ranker/widgets/boba_cup_icon.dart';
+import 'package:tea_ranker/widgets/logo_color_picker.dart';
 import 'package:tea_ranker/widgets/shop_logo_circle.dart';
 
 ShopRow shop({String? name, String? nameZh}) => ShopRow(
@@ -21,12 +22,14 @@ ShopBrand brand({
   String? nameZh,
   String? logoPath,
   String? selectedHex,
+  bool tintHome = true,
 }) => ShopBrand(
   id: 'b',
   name: name,
   nameZh: nameZh,
   logoPath: logoPath,
   selectedHex: selectedHex,
+  tintHome: tintHome,
 );
 
 void main() {
@@ -46,44 +49,42 @@ void main() {
       isTrue,
     );
     expect(shopMatchesBrand(fifty, brand(name: 'Kebuke')), isFalse);
+    expect(
+      shopMatchesBrand(
+        shop(name: 'CHAGE', nameZh: '茶聚'),
+        brand(name: 'CHAGE / 茶聚'),
+      ),
+      isTrue,
+    );
   });
 
   test(
-    'tint defaults off; logo wash mixes toward cream and stays readable',
+    'tint defaults on per brand; logo wash keeps the chosen hue visible',
     () {
+      expect(brand().tintHome, isTrue);
+      expect(ShopBrand.fromMap({'id': 'b', 'name': 'x'}).tintHome, isTrue);
+      ProfileRow.fromMap({'id': 'u', 'username': 'j'});
+      final blue = logoPageWash('#1565C0');
+      expect(blue, isNot(AppColors.cream));
+      expect(blue, isNot(shopPageWash(bandForAverage(3))));
+      expect(kLogoWashMix, greaterThan(kGradeWashMix));
       expect(
-        const ProfileRow(id: 'u', username: 'j').tintHomeWithLogos,
-        isFalse,
-      );
-      expect(
-        ProfileRow.fromMap({'id': 'u', 'username': 'j'}).tintHomeWithLogos,
-        isFalse,
-      );
-      final hue = colorFromHex('#1A1A1A');
-      final unlifted = Color.lerp(AppColors.cream, hue, kGradeWashMix)!;
-      final wash = logoPageWash('#1A1A1A');
-      expect(
-        contrastRatio(wash, AppColors.chocolate),
-        greaterThanOrEqualTo(contrastRatio(unlifted, AppColors.chocolate)),
-      );
-      expect(
-        contrastRatio(wash, AppColors.chocolate),
-        closeTo(contrastRatio(AppColors.cream, AppColors.chocolate), 0.05),
+        blue,
+        isNot(
+          Color.lerp(AppColors.cream, colorFromHex('#1565C0'), kGradeWashMix),
+        ),
       );
       final off = homeRowWash(
-        tintHomeWithLogos: false,
-        brand: brand(logoPath: 'x', selectedHex: '#E6B422'),
+        brand: brand(logoPath: 'x', selectedHex: '#E6B422', tintHome: false),
         gradeMark: 'A',
       );
       expect(off, gradeWash('A'));
       final on = homeRowWash(
-        tintHomeWithLogos: true,
         brand: brand(logoPath: 'x', selectedHex: '#E6B422'),
         gradeMark: 'A',
       );
       expect(on, logoPageWash('#E6B422'));
       final noLogo = homeRowWash(
-        tintHomeWithLogos: true,
         brand: brand(selectedHex: '#E6B422'),
         gradeMark: 'A',
       );
@@ -98,18 +99,48 @@ void main() {
       band: band,
     );
     expect(withLogo, logoPageWash('#1565C0'));
+    expect(withLogo, isNot(shopPageWash(band)));
     expect(shopDetailsPageWash(brand: null, band: band), shopPageWash(band));
   });
 
+  test('brand map reads selected_hex, palette fallback, and logo_url', () {
+    final fromPalette = ShopBrand.fromMap({
+      'id': 'b1',
+      'name': 'TrueDan',
+      'palette_hex': ['#1565C0', '#EEEEEE'],
+    });
+    expect(fromPalette.effectiveSelectedHex, '#1565C0');
+    expect(fromPalette.tintHome, isTrue);
+    final fromUrl = ShopBrand.fromMap({
+      'id': 'b2',
+      'name_zh': '五十嵐',
+      'logo_url': 'https://cdn.example/logo.png',
+      'color_hex': '#E6B422',
+    });
+    expect(fromUrl.hasLogo, isTrue);
+    expect(fromUrl.selectedHex, '#E6B422');
+    expect(
+      resolveLogoUrl(fromUrl.logoPath, publicUrlFor: (p) => 'storage://$p'),
+      'https://cdn.example/logo.png',
+    );
+    expect(
+      resolveLogoUrl('shop-logos/abc/logo.jpg', publicUrlFor: (p) => 'pub/$p'),
+      'pub/abc/logo.jpg',
+    );
+    expect(
+      resolveLogoUrl('abc/logo.jpg', publicUrlFor: (p) => 'pub/$p'),
+      'pub/abc/logo.jpg',
+    );
+  });
+
   test('locked copy', () {
-    expect(kTintHomeWithLogosLabel, 'Tint Home rows with shop logos');
+    expect(kTintHomeRowLabel, 'Tint Home row');
     expect(kPickMainColorTitle, 'Pick the main color');
     expect(kAddOrReplaceLogoTooltip, 'Add or replace logo');
   });
 
-  test('home circle is larger than the row and leaves room for the name', () {
-    expect(kHomeLogoCircleSize, 96);
-    expect(kHomeLogoCircleSize, greaterThan(80));
+  test('home circle is 80 and leaves room for the name', () {
+    expect(kHomeLogoCircleSize, 80);
     expect(kHomeLogoTextInset, kHomeLogoCircleSize + kHomeLogoCircleGap);
   });
 
@@ -202,5 +233,63 @@ void main() {
     );
     expect(find.text('S'), findsOneWidget);
     expect(find.byType(BobaCupIcon), findsNothing);
+  });
+
+  testWidgets('logo sheet has add/replace, color title, and tint default on', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () => showShopLogoSheet(context: context),
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text(kPickMainColorTitle), findsOneWidget);
+    expect(find.text(kAddOrReplaceLogoTooltip), findsOneWidget);
+    expect(find.text(kTintHomeRowLabel), findsOneWidget);
+    expect(
+      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      isTrue,
+    );
+  });
+
+  testWidgets('logo sheet tint switch can start off for a brand', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () => showShopLogoSheet(
+                  context: context,
+                  brand: brand(tintHome: false),
+                ),
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      isFalse,
+    );
   });
 }

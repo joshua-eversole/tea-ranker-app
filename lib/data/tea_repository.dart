@@ -547,24 +547,6 @@ class TeaRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> updateTintHomeWithLogos(bool value) async {
-    final uid = userId;
-    if (uid == null) throw StateError('Not signed in');
-    try {
-      await _client
-          .from('profiles')
-          .update({'tint_home_with_logos': value})
-          .eq('id', uid);
-    } catch (_) {
-      rethrow;
-    }
-    final current = account;
-    if (current != null) {
-      account = current.copyWith(tintHomeWithLogos: value);
-      notifyListeners();
-    }
-  }
-
   Future<void> updateToppingColor({
     required String toppingId,
     required String colorHex,
@@ -1039,10 +1021,13 @@ class TeaRepository extends ChangeNotifier {
   Future<void> _loadShopBrands() async {
     try {
       final rows = await _client.from('shop_brands').select();
-      shopBrands = [
-        for (final raw in rows as List)
-          ShopBrand.fromMap(Map<String, dynamic>.from(raw as Map)),
-      ];
+      final parsed = <ShopBrand>[];
+      for (final raw in rows as List) {
+        try {
+          parsed.add(ShopBrand.fromMap(Map<String, dynamic>.from(raw as Map)));
+        } catch (_) {}
+      }
+      shopBrands = parsed;
     } catch (_) {
       shopBrands = const [];
     }
@@ -1051,64 +1036,101 @@ class TeaRepository extends ChangeNotifier {
   ShopBrand? brandFor(ShopRow shop) => brandForShop(shop, shopBrands);
 
   String? publicLogoUrl(ShopBrand? brand) {
-    final path = brand?.logoPath;
-    if (path == null || path.trim().isEmpty) return null;
-    return _client.storage.from(kShopLogosBucket).getPublicUrl(path);
+    return resolveLogoUrl(
+      brand?.logoPath,
+      publicUrlFor: (path) =>
+          _client.storage.from(kShopLogosBucket).getPublicUrl(path),
+    );
   }
 
-  Future<void> saveShopLogo({
+  Future<void> saveShopBrandSettings({
     required ShopRow shop,
-    required Uint8List bytes,
-    required String contentType,
-    required List<String> paletteHex,
-    required String selectedHex,
+    Uint8List? bytes,
+    String? contentType,
+    List<String> paletteHex = const [],
+    String? selectedHex,
+    required bool tintHome,
   }) async {
     var brand = brandForShop(shop, shopBrands);
     if (brand == null) {
-      try {
-        final inserted = await _client
-            .from('shop_brands')
-            .insert({
-              'name': shop.englishName,
-              'name_zh': shop.chineseName,
-              'palette_hex': paletteHex,
-              'selected_hex': selectedHex,
-            })
-            .select()
-            .single();
+      final inserted = await _insertBrand({
+        'name': shop.englishName,
+        'name_zh': shop.chineseName,
+        if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+        'selected_hex': ?selectedHex,
+        'tint_home': tintHome,
+      });
+      if (inserted != null) {
         brand = ShopBrand.fromMap(inserted);
-      } catch (_) {
+      } else {
         await _loadShopBrands();
         brand = brandForShop(shop, shopBrands);
-        if (brand == null) rethrow;
+        if (brand == null) {
+          throw StateError('Could not create shop_brands row');
+        }
       }
     }
-    final ext = contentType.contains('png')
-        ? 'png'
-        : contentType.contains('webp')
-        ? 'webp'
-        : 'jpg';
-    final path = '${brand.id}/logo.$ext';
-    await _client.storage
-        .from(kShopLogosBucket)
-        .uploadBinary(
-          path,
-          bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
-        );
-    await _client
-        .from('shop_brands')
-        .update({
-          'logo_path': path,
-          'palette_hex': paletteHex,
-          'selected_hex': selectedHex,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-          'name': shop.englishName ?? brand.name,
-          'name_zh': shop.chineseName ?? brand.nameZh,
-        })
-        .eq('id', brand.id);
+    String? path;
+    if (bytes != null && contentType != null) {
+      final ext = contentType.contains('png')
+          ? 'png'
+          : contentType.contains('webp')
+          ? 'webp'
+          : 'jpg';
+      path = '${brand.id}/logo.$ext';
+      await _client.storage
+          .from(kShopLogosBucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
+          );
+    }
+    await _updateBrand(brand.id, {
+      'logo_path': ?path,
+      if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+      'selected_hex': ?selectedHex,
+      'tint_home': tintHome,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'name': shop.englishName ?? brand.name,
+      'name_zh': shop.chineseName ?? brand.nameZh,
+    });
     await _loadShopBrands();
     notifyListeners();
+  }
+
+  Future<Map<String, dynamic>?> _insertBrand(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      return Map<String, dynamic>.from(
+        await _client.from('shop_brands').insert(payload).select().single()
+            as Map,
+      );
+    } catch (_) {
+      final slim = Map<String, dynamic>.from(payload)
+        ..remove('tint_home')
+        ..remove('updated_at');
+      try {
+        return Map<String, dynamic>.from(
+          await _client.from('shop_brands').insert(slim).select().single()
+              as Map,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  Future<void> _updateBrand(String id, Map<String, dynamic> payload) async {
+    try {
+      await _client.from('shop_brands').update(payload).eq('id', id);
+    } catch (_) {
+      final slim = Map<String, dynamic>.from(payload)
+        ..remove('tint_home')
+        ..remove('updated_at');
+      await _client.from('shop_brands').update(slim).eq('id', id);
+    }
   }
 
   Future<void> signOut() async {

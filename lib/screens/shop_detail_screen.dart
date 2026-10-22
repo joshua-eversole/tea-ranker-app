@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../data/shop_brands.dart';
 import '../data/tea_repository.dart';
-import '../theme/logo_palette.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
@@ -168,26 +166,20 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
     }
   }
 
-  Future<void> _addOrReplaceLogo(ShopRow shop) async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null || !mounted) return;
+  Future<void> _openLogoSheet(ShopRow shop) async {
+    final result = await showShopLogoSheet(
+      context: context,
+      brand: widget.repo.brandFor(shop),
+    );
+    if (result == null || !mounted) return;
     try {
-      final bytes = await picked.readAsBytes();
-      var palette = await extractLogoPalette(bytes);
-      if (!mounted) return;
-      if (palette.isEmpty) palette = const ['#D4B59E'];
-      final hex = await showLogoColorPicker(
-        context: context,
-        paletteHex: palette,
-      );
-      if (hex == null || !mounted) return;
-      final mime = picked.mimeType ?? 'image/jpeg';
-      await widget.repo.saveShopLogo(
+      await widget.repo.saveShopBrandSettings(
         shop: shop,
-        bytes: bytes,
-        contentType: mime,
-        paletteHex: palette,
-        selectedHex: hex,
+        bytes: result.bytes,
+        contentType: result.contentType,
+        paletteHex: result.paletteHex,
+        selectedHex: result.selectedHex,
+        tintHome: result.tintHome,
       );
     } catch (_) {
       if (!mounted) return;
@@ -279,7 +271,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                         logoUrl: widget.repo.publicLogoUrl(brand),
                         showGradeMark: true,
                         tooltip: kAddOrReplaceLogoTooltip,
-                        onTap: () => _addOrReplaceLogo(feed.shop),
+                        onTap: () => _openLogoSheet(feed.shop),
                       ),
                     ],
                   ),
