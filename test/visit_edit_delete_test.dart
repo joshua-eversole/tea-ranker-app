@@ -6,14 +6,15 @@ import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/drink_logger_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
 
-DrinkEntryRow sampleDrink() => DrinkEntryRow(
+DrinkEntryRow sampleDrink({int? sugarLevel = 30, int? iceLevel = 50}) =>
+    DrinkEntryRow(
       id: 'd1',
       userId: 'u1',
       shopId: 's1',
       teaName: 'Wintermelon Milk',
       drinkType: 'Milk-based',
-      sugarLevel: 30,
-      iceLevel: 50,
+      sugarLevel: sugarLevel,
+      iceLevel: iceLevel,
       price: 65,
       grade: 4,
       overallGrade: 'A',
@@ -61,6 +62,75 @@ void main() {
     );
   });
 
+  test('write payload stores null sugar/ice when Fixed', () {
+    final payload = drinkEntryWritePayload(
+      shopId: 'shop-1',
+      teaName: 'Special',
+      drinkType: 'Tea-based',
+      sugarLevel: null,
+      iceLevel: null,
+      price: 70,
+      grade: LetterGrade.s,
+      notes: null,
+      localDay: DateTime(2026, 10, 22),
+    );
+    expect(payload['sugar_level'], isNull);
+    expect(payload['ice_level'], isNull);
+  });
+
+  test('fromMap keeps null sugar/ice, does not coerce to 0', () {
+    final row = DrinkEntryRow.fromMap({
+      'id': 'd',
+      'user_id': 'u',
+      'shop_id': 's',
+      'tea_name': 'Special',
+      'drink_type': 'Tea-based',
+      'sugar_level': null,
+      'ice_level': null,
+      'price': 70,
+      'grade': 5,
+      'overall_grade': 'S',
+      'notes': null,
+      'logged_at': DateTime(2026, 10, 22, 12).toUtc().toIso8601String(),
+    });
+    expect(row.sugarLevel, isNull);
+    expect(row.iceLevel, isNull);
+  });
+
+  test('Save still requires shop, drink, price, base, grade; Fixed skips %', () {
+    expect(
+      loggerCanSave(
+        shop: '50 Lan',
+        tea: 'Milk tea',
+        priceText: '65',
+        base: 'Milk-based',
+        grade: LetterGrade.a,
+        sugarFixed: true,
+        iceFixed: true,
+        sugar: 50,
+        ice: 50,
+        saving: false,
+      ),
+      isTrue,
+    );
+    expect(
+      loggerCanSave(
+        shop: '',
+        tea: 'Milk tea',
+        priceText: '65',
+        base: 'Milk-based',
+        grade: LetterGrade.a,
+        sugarFixed: true,
+        iceFixed: false,
+        sugar: 30,
+        ice: 50,
+        saving: false,
+      ),
+      isFalse,
+    );
+    expect(kFixedLevelLabel, 'Fixed');
+  });
+
   test('empty shop still pops Home after the last visit is gone', () {
     expect(
       shopDetailPhase(
@@ -86,6 +156,8 @@ void main() {
       ),
     );
     expect(find.text('Wintermelon Milk'), findsOneWidget);
+    expect(find.text('30%'), findsOneWidget);
+    expect(find.text('50%'), findsOneWidget);
     await tester.tap(find.byTooltip('Edit or delete this visit'));
     await tester.pumpAndSettle();
     expect(find.text('Edit'), findsOneWidget);
@@ -144,5 +216,24 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(deleted, isTrue);
+  });
+
+  testWidgets('visit card omits Fixed sugar/ice instead of faking 0%', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DrinkVisitCard(
+            drink: sampleDrink(sugarLevel: null, iceLevel: 50),
+            onEdit: () {},
+            onDelete: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('0%'), findsNothing);
+    expect(find.text('30%'), findsNothing);
+    expect(find.text('50%'), findsOneWidget);
   });
 }

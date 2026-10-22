@@ -12,13 +12,15 @@ class PercentGradientSlider extends StatelessWidget {
     required this.strongColor,
     required this.onChanged,
     this.onChangeEnd,
+    this.enabled = true,
   });
 
   final String label;
   final double value;
   final Color strongColor;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
   final ValueChanged<double>? onChangeEnd;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +45,8 @@ class PercentGradientSlider extends StatelessWidget {
             max: 100,
             divisions: 10,
             label: '${value.round()}%',
-            onChanged: onChanged,
-            onChangeEnd: onChangeEnd,
+            onChanged: enabled ? onChanged : null,
+            onChangeEnd: enabled ? onChangeEnd : null,
           ),
         ),
       ],

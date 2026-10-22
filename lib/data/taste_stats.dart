@@ -57,8 +57,8 @@ TasteProfile buildTasteProfile(
   int? favoriteToppingIntensity;
   int? daysSince;
   if (sorted.isNotEmpty) {
-    avgSugar = _meanInt(sorted.map((e) => e.sugarLevel));
-    avgIce = _meanInt(sorted.map((e) => e.iceLevel));
+    avgSugar = _meanInt(sorted.map((e) => e.sugarLevel).whereType<int>());
+    avgIce = _meanInt(sorted.map((e) => e.iceLevel).whereType<int>());
     avgPrice =
         sorted.map((e) => e.price).reduce((a, b) => a + b) / sorted.length;
     favoriteBase = _favoriteByCount(sorted, keyOf: (e) => e.drinkType);
@@ -143,8 +143,9 @@ TasteProfile buildTasteProfile(
   );
 }
 
-int _meanInt(Iterable<int> values) {
+int? _meanInt(Iterable<int> values) {
   final list = values.toList();
+  if (list.isEmpty) return null;
   final mean = list.reduce((a, b) => a + b) / list.length;
   return mean.round();
 }
