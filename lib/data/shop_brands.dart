@@ -153,22 +153,29 @@ ShopBrand? brandForShop(ShopRow shop, Iterable<ShopBrand> brands) {
   return null;
 }
 
-/// Mix [selectedHex] toward cream. [tintStrength] 0–100; lift (more cream)
-/// only down to [kLogoWashMixFloor] so chocolate type stays readable.
+/// Mix [selectedHex] toward cream. Slider 0 = barely; 100 = strongest
+/// mix that still keeps chocolate type readable (not past [kLogoWashMixFloor]).
 Color logoPageWash(
   String? selectedHex, {
   int tintStrength = kDefaultTintStrength,
 }) {
   final hue = colorFromHex(selectedHex, fallback: AppColors.seed);
-  var mix = logoWashMixFromStrength(tintStrength);
-  var wash = Color.lerp(AppColors.cream, hue, mix)!;
+  final t = snapTintStrength(tintStrength) / 100.0;
+  final maxMix = _strongestReadableLogoMix(hue);
+  final mix = kLogoWashBarelyMix + t * (maxMix - kLogoWashBarelyMix);
+  return Color.lerp(AppColors.cream, hue, mix)!;
+}
+
+double _strongestReadableLogoMix(Color hue) {
+  var mix = 1.0;
   final creamContrast = contrastRatio(AppColors.cream, AppColors.chocolate);
+  var wash = Color.lerp(AppColors.cream, hue, mix)!;
   while (contrastRatio(wash, AppColors.chocolate) < creamContrast * 0.9 &&
       mix > kLogoWashMixFloor) {
     mix = (mix - 0.02).clamp(kLogoWashMixFloor, 1.0);
     wash = Color.lerp(AppColors.cream, hue, mix)!;
   }
-  return wash;
+  return mix;
 }
 
 Color shopDetailsPageWash({

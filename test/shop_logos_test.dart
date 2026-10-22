@@ -163,13 +163,20 @@ void main() {
     expect(logoWashMixFromStrength(0), kLogoWashBarelyMix);
     expect(logoWashMixFromStrength(0), greaterThan(0));
     expect(logoWashMixFromStrength(100), 1.0);
-    final hue = '#1565C0';
+    const hue = '#E6B422';
     final light = logoPageWash(hue, tintStrength: 0);
     final mid = logoPageWash(hue, tintStrength: 40);
     final strong = logoPageWash(hue, tintStrength: 100);
     expect(light, isNot(AppColors.cream));
     expect(light, isNot(mid));
     expect(strong, isNot(mid));
+    expect(
+      shopDetailsPageWash(
+        brand: brand(logoPath: 'p', selectedHex: hue, tintStrength: 10),
+        band: bandForAverage(4),
+      ),
+      logoPageWash(hue, tintStrength: 10),
+    );
     expect(
       ShopBrand.fromMap({
         'id': 'b',
@@ -470,6 +477,7 @@ void main() {
     expect(find.text(kPickMainColorTitle), findsOneWidget);
     expect(find.text(kCustomRgbLabel), findsOneWidget);
     expect(find.text('Hex'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save'));
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(result, isNotNull);
