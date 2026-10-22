@@ -255,12 +255,7 @@ class _ShopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brand = repo.brandFor(item.shop);
-    final tint = repo.account?.tintHomeWithLogos ?? false;
-    final wash = homeRowWash(
-      tintHomeWithLogos: tint,
-      brand: brand,
-      gradeMark: item.band?.label,
-    );
+    final wash = homeRowWash(brand: brand, gradeMark: item.band?.label);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Stack(

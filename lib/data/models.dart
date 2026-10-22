@@ -11,7 +11,7 @@ class ProfileRow {
     required this.username,
     this.defaultSugarPercent = 50,
     this.defaultIcePercent = 50,
-    this.tintHomeWithLogos = false,
+    this.tintHomeWithLogos = true,
   });
   final String id;
   final String username;
@@ -28,7 +28,7 @@ class ProfileRow {
     defaultIcePercent: snapPercent(
       (map['default_ice_percent'] as num?)?.toInt() ?? 50,
     ),
-    tintHomeWithLogos: map['tint_home_with_logos'] as bool? ?? false,
+    tintHomeWithLogos: map['tint_home_with_logos'] as bool? ?? true,
   );
 
   ProfileRow copyWith({

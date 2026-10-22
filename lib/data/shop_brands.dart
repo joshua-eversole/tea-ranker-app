@@ -5,15 +5,15 @@ import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
 import 'models.dart';
 
-const kTintHomeWithLogosLabel = 'Tint Home rows with shop logos';
+const kTintHomeRowLabel = 'Tint Home row';
 const kPickMainColorTitle = 'Pick the main color';
 const kAddOrReplaceLogoTooltip = 'Add or replace logo';
 const kShopLogosSqlHint =
-    'Paste supabase/shop_brands_and_logos.sql in the Supabase SQL editor.';
+    'Paste supabase/shop_brands_and_logos.sql and supabase/shop_brands_tint_home.sql in the Supabase SQL editor.';
 const kShopLogosBucket = 'shop-logos';
 
 /// Left Home circle is slightly larger than the shop row (vertical overflow OK).
-const kHomeLogoCircleSize = 96.0;
+const kHomeLogoCircleSize = 80.0;
 
 /// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
 const kHomeLogoCircleWashMix = 0.30;
@@ -32,6 +32,7 @@ class ShopBrand {
     this.logoPath,
     this.paletteHex = const [],
     this.selectedHex,
+    this.tintHome = true,
   });
 
   final String id;
@@ -40,6 +41,7 @@ class ShopBrand {
   final String? logoPath;
   final List<String> paletteHex;
   final String? selectedHex;
+  final bool tintHome;
 
   String? get englishName => trimToNull(name);
   String? get chineseName => trimToNull(nameZh);
@@ -78,6 +80,7 @@ class ShopBrand {
       logoPath: map['logo_path'] as String?,
       paletteHex: palette,
       selectedHex: tryNormalizeColorHex(map['selected_hex'] as String?),
+      tintHome: map['tint_home'] as bool? ?? true,
     );
   }
 }
@@ -132,15 +135,11 @@ Color shopDetailsPageWash({
   return shopPageWash(band);
 }
 
-Color? homeRowWash({
-  required bool tintHomeWithLogos,
-  required ShopBrand? brand,
-  required String? gradeMark,
-}) {
-  if (tintHomeWithLogos &&
-      brand != null &&
+Color? homeRowWash({required ShopBrand? brand, required String? gradeMark}) {
+  if (brand != null &&
       brand.hasLogo &&
-      brand.selectedHex != null) {
+      brand.selectedHex != null &&
+      brand.tintHome) {
     return logoPageWash(brand.selectedHex);
   }
   return gradeWash(gradeMark);

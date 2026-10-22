@@ -547,24 +547,6 @@ class TeaRepository extends ChangeNotifier {
     }
   }
 
-  Future<void> updateTintHomeWithLogos(bool value) async {
-    final uid = userId;
-    if (uid == null) throw StateError('Not signed in');
-    try {
-      await _client
-          .from('profiles')
-          .update({'tint_home_with_logos': value})
-          .eq('id', uid);
-    } catch (_) {
-      rethrow;
-    }
-    final current = account;
-    if (current != null) {
-      account = current.copyWith(tintHomeWithLogos: value);
-      notifyListeners();
-    }
-  }
-
   Future<void> updateToppingColor({
     required String toppingId,
     required String colorHex,
@@ -1056,12 +1038,13 @@ class TeaRepository extends ChangeNotifier {
     return _client.storage.from(kShopLogosBucket).getPublicUrl(path);
   }
 
-  Future<void> saveShopLogo({
+  Future<void> saveShopBrandSettings({
     required ShopRow shop,
-    required Uint8List bytes,
-    required String contentType,
-    required List<String> paletteHex,
-    required String selectedHex,
+    Uint8List? bytes,
+    String? contentType,
+    List<String> paletteHex = const [],
+    String? selectedHex,
+    required bool tintHome,
   }) async {
     var brand = brandForShop(shop, shopBrands);
     if (brand == null) {
@@ -1071,8 +1054,9 @@ class TeaRepository extends ChangeNotifier {
             .insert({
               'name': shop.englishName,
               'name_zh': shop.chineseName,
-              'palette_hex': paletteHex,
-              'selected_hex': selectedHex,
+              if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+              'selected_hex': ?selectedHex,
+              'tint_home': tintHome,
             })
             .select()
             .single();
@@ -1083,25 +1067,29 @@ class TeaRepository extends ChangeNotifier {
         if (brand == null) rethrow;
       }
     }
-    final ext = contentType.contains('png')
-        ? 'png'
-        : contentType.contains('webp')
-        ? 'webp'
-        : 'jpg';
-    final path = '${brand.id}/logo.$ext';
-    await _client.storage
-        .from(kShopLogosBucket)
-        .uploadBinary(
-          path,
-          bytes,
-          fileOptions: FileOptions(contentType: contentType, upsert: true),
-        );
+    String? path;
+    if (bytes != null && contentType != null) {
+      final ext = contentType.contains('png')
+          ? 'png'
+          : contentType.contains('webp')
+          ? 'webp'
+          : 'jpg';
+      path = '${brand.id}/logo.$ext';
+      await _client.storage
+          .from(kShopLogosBucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
+          );
+    }
     await _client
         .from('shop_brands')
         .update({
-          'logo_path': path,
-          'palette_hex': paletteHex,
-          'selected_hex': selectedHex,
+          'logo_path': ?path,
+          if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+          'selected_hex': ?selectedHex,
+          'tint_home': tintHome,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
           'name': shop.englishName ?? brand.name,
           'name_zh': shop.chineseName ?? brand.nameZh,
