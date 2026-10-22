@@ -256,22 +256,24 @@ class _ShopCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = repo.brandFor(item.shop);
     final tint = repo.account?.tintHomeWithLogos ?? false;
+    final wash = homeRowWash(
+      tintHomeWithLogos: tint,
+      brand: brand,
+      gradeMark: item.band?.label,
+    );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.centerLeft,
         children: [
           GradeWashSurface(
             mark: item.band?.label,
-            wash: homeRowWash(
-              tintHomeWithLogos: tint,
-              brand: brand,
-              gradeMark: item.band?.label,
-            ),
+            wash: wash,
             onTap: () => context.push('/shops/${item.shop.id}'),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                kHomeLogoCircleSize - 4,
+                kHomeLogoTextInset,
                 14,
                 16,
                 14,
@@ -299,15 +301,17 @@ class _ShopCard extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            top: -6,
-            child: IgnorePointer(
-              child: ShopLogoCircle(
-                size: kHomeLogoCircleSize,
-                band: item.band,
-                brand: brand,
-                logoUrl: repo.publicLogoUrl(brand),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: IgnorePointer(
+                child: ShopLogoCircle(
+                  size: kHomeLogoCircleSize,
+                  band: item.band,
+                  brand: brand,
+                  logoUrl: repo.publicLogoUrl(brand),
+                  fill: wash,
+                ),
               ),
             ),
           ),
