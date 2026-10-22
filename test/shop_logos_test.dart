@@ -106,9 +106,17 @@ void main() {
     expect(kAddOrReplaceLogoTooltip, 'Add or replace logo');
   });
 
-  testWidgets('home circle without logo is grade fill, not a letter', (
+  test('home circle is larger than the row and leaves room for the name', () {
+    expect(kHomeLogoCircleSize, 80);
+    expect(kHomeLogoCircleSize, greaterThan(72));
+    expect(kHomeLogoTextInset, kHomeLogoCircleSize + kHomeLogoCircleGap);
+  });
+
+  testWidgets('home circle without logo is wash fill, not a letter disc', (
     tester,
   ) async {
+    final band = bandForAverage(5);
+    final wash = gradeWash(band!.label);
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTeaTheme(),
@@ -116,12 +124,39 @@ void main() {
           backgroundColor: AppColors.cream,
           body: ShopLogoCircle(
             size: kHomeLogoCircleSize,
-            band: bandForAverage(5),
+            band: band,
+            fill: wash,
           ),
         ),
       ),
     );
     expect(find.text('S'), findsNothing);
     expect(find.byType(ShopLogoCircle), findsOneWidget);
+    final box = tester.widget<ColoredBox>(
+      find.descendant(
+        of: find.byType(ShopLogoCircle),
+        matching: find.byType(ColoredBox),
+      ),
+    );
+    expect(box.color, wash);
+    expect(box.color, isNot(colorsForMark(band.label).$1));
+  });
+
+  testWidgets('shop-details header without logo still shows the letter', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(
+          body: ShopLogoCircle(
+            size: AppLayout.shopHeaderGradeSize,
+            band: bandForAverage(5),
+            showGradeMark: true,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('S'), findsOneWidget);
   });
 }

@@ -13,7 +13,13 @@ const kShopLogosSqlHint =
 const kShopLogosBucket = 'shop-logos';
 
 /// Left Home circle is slightly larger than the shop row.
-const kHomeLogoCircleSize = 72.0;
+const kHomeLogoCircleSize = 80.0;
+
+/// Gap between the Home circle and the shop name / visit count.
+const kHomeLogoCircleGap = 12.0;
+
+/// Left inset so the circle cannot cover title or visit count.
+const kHomeLogoTextInset = kHomeLogoCircleSize + kHomeLogoCircleGap;
 
 class ShopBrand {
   const ShopBrand({

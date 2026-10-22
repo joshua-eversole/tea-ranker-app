@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../data/shop_brands.dart';
 import '../grading/grade.dart';
-import '../theme/tokens.dart';
 import 'grade_circle.dart';
 
 class ShopLogoCircle extends StatelessWidget {
@@ -15,6 +14,7 @@ class ShopLogoCircle extends StatelessWidget {
     this.onTap,
     this.tooltip,
     this.showGradeMark = false,
+    this.fill,
   });
 
   final double size;
@@ -25,8 +25,22 @@ class ShopLogoCircle extends StatelessWidget {
   final String? tooltip;
 
   /// Shop-details header keeps S–D with +/− when there is no logo.
-  /// Home left circle is grade **fill** only; the letter stays on the right.
+  /// Home left circle is wash **fill** only; the letter stays on the right.
   final bool showGradeMark;
+
+  /// Home no-logo fill — same cream mix as the shop row, not the letter disc.
+  final Color? fill;
+
+  Color get _placeholder {
+    return fill ?? gradeWash(band?.label);
+  }
+
+  Widget _placeholderChild() {
+    if (showGradeMark) {
+      return GradeOrDash(band: band, size: size);
+    }
+    return ColoredBox(color: _placeholder);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,15 +55,9 @@ class ShopLogoCircle extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: size,
                 height: size,
-                errorBuilder: (_, _, _) => GradeOrDash(band: band, size: size),
+                errorBuilder: (_, _, _) => _placeholderChild(),
               )
-            : showGradeMark
-            ? GradeOrDash(band: band, size: size)
-            : ColoredBox(
-                color: band == null
-                    ? AppColors.seed
-                    : colorsForMark(band!.label).$1,
-              ),
+            : _placeholderChild(),
       ),
     );
     if (onTap == null) return child;
