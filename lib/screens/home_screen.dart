@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/models.dart';
+import '../data/shop_brands.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
+import '../widgets/shop_logo_circle.dart';
 import '../widgets/shop_name_text.dart';
 import '../widgets/tea_skeleton.dart';
 
@@ -61,7 +63,7 @@ class HomeScreen extends StatelessWidget {
           case HomePhase.empty:
             return _HomeEmpty(welcome: hello);
           case HomePhase.ready:
-            return _HomeLoaded(welcome: hello, data: data!);
+            return _HomeLoaded(welcome: hello, data: data!, repo: repo);
         }
       },
     );
@@ -216,9 +218,14 @@ class _ShopBone extends StatelessWidget {
 }
 
 class _HomeLoaded extends StatelessWidget {
-  const _HomeLoaded({required this.welcome, required this.data});
+  const _HomeLoaded({
+    required this.welcome,
+    required this.data,
+    required this.repo,
+  });
   final String welcome;
   final TasteProfile data;
+  final TeaRepository repo;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +238,7 @@ class _HomeLoaded extends StatelessWidget {
           Text('Shops', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (final item in data.shopFeed) ...[
-            _ShopCard(item: item),
+            _ShopCard(item: item, repo: repo),
             const SizedBox(height: 10),
           ],
         ],
@@ -241,34 +248,70 @@ class _HomeLoaded extends StatelessWidget {
 }
 
 class _ShopCard extends StatelessWidget {
-  const _ShopCard({required this.item});
+  const _ShopCard({required this.item, required this.repo});
   final ShopFeedItem item;
+  final TeaRepository repo;
 
   @override
   Widget build(BuildContext context) {
-    return GradeWashSurface(
-      mark: item.band?.label,
-      onTap: () => context.push('/shops/${item.shop.id}'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final brand = repo.brandFor(item.shop);
+    final tint = repo.account?.tintHomeWithLogos ?? false;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GradeWashSurface(
+            mark: item.band?.label,
+            wash: homeRowWash(
+              tintHomeWithLogos: tint,
+              brand: brand,
+              gradeMark: item.band?.label,
+            ),
+            onTap: () => context.push('/shops/${item.shop.id}'),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kHomeLogoCircleSize - 4,
+                14,
+                16,
+                14,
+              ),
+              child: Row(
                 children: [
-                  ShopNameText(shop: item.shop),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',
-                    style: const TextStyle(color: AppColors.chocolate),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShopNameText(shop: item.shop),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${item.visitCount} ${item.visitCount == 1 ? 'visit' : 'visits'}',
+                          style: const TextStyle(color: AppColors.chocolate),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GradeOrDash(
+                    band: item.band,
+                    size: AppLayout.historyGradeSize,
                   ),
                 ],
               ),
             ),
-            GradeOrDash(band: item.band, size: AppLayout.historyGradeSize),
-          ],
-        ),
+          ),
+          Positioned(
+            left: 0,
+            top: -6,
+            child: IgnorePointer(
+              child: ShopLogoCircle(
+                size: kHomeLogoCircleSize,
+                band: item.band,
+                brand: brand,
+                logoUrl: repo.publicLogoUrl(brand),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

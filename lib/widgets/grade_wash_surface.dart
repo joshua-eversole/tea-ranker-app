@@ -10,11 +10,15 @@ class GradeWashSurface extends StatelessWidget {
     required this.mark,
     required this.child,
     this.onTap,
+    this.wash,
   });
 
   final String? mark;
   final Widget child;
   final VoidCallback? onTap;
+
+  /// Overrides grade wash (Home logo tint). Visit cards never pass this.
+  final Color? wash;
 
   @override
   Widget build(BuildContext context) {
@@ -22,18 +26,14 @@ class GradeWashSurface extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadii.card),
     );
     return Material(
-      color: gradeWash(mark),
+      color: wash ?? gradeWash(mark),
       elevation: 0,
       shadowColor: Colors.transparent,
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: onTap == null
           ? child
-          : InkWell(
-              onTap: onTap,
-              customBorder: shape,
-              child: child,
-            ),
+          : InkWell(onTap: onTap, customBorder: shape, child: child),
     );
   }
 }

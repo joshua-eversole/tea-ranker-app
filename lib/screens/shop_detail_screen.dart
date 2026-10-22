@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../data/models.dart';
+import '../data/shop_brands.dart';
 import '../data/tea_repository.dart';
-import '../grading/grade.dart';
+import '../theme/logo_palette.dart';
 import '../theme/tokens.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
+import '../widgets/logo_color_picker.dart';
+import '../widgets/shop_logo_circle.dart';
 import '../widgets/shop_name_text.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/with_companions_line.dart';
@@ -164,6 +168,37 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
     }
   }
 
+  Future<void> _addOrReplaceLogo(ShopRow shop) async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null || !mounted) return;
+    try {
+      final bytes = await picked.readAsBytes();
+      var palette = await extractLogoPalette(bytes);
+      if (!mounted) return;
+      if (palette.isEmpty) palette = const ['#D4B59E'];
+      final hex = await showLogoColorPicker(
+        context: context,
+        paletteHex: palette,
+      );
+      if (hex == null || !mounted) return;
+      final mime = picked.mimeType ?? 'image/jpeg';
+      await widget.repo.saveShopLogo(
+        shop: shop,
+        bytes: bytes,
+        contentType: mime,
+        paletteHex: palette,
+        selectedHex: hex,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t save that logo. $kShopLogosSqlHint'),
+        ),
+      );
+    }
+  }
+
   Future<void> _editVisit(DrinkEntryRow drink) async {
     await context.push('/log/${drink.id}');
   }
@@ -211,8 +246,9 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
         }
         final feed = item!;
         _syncNotes(feed.shop);
+        final brand = widget.repo.brandFor(feed.shop);
         return ColoredBox(
-          color: shopPageWash(feed.band),
+          color: shopDetailsPageWash(brand: brand, band: feed.band),
           child: SafeArea(
             child: Column(
               children: [
@@ -236,9 +272,14 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                         onPressed: () => _editNames(feed.shop),
                         icon: const Icon(Icons.edit_outlined),
                       ),
-                      GradeOrDash(
-                        band: feed.band,
+                      ShopLogoCircle(
                         size: AppLayout.shopHeaderGradeSize,
+                        band: feed.band,
+                        brand: brand,
+                        logoUrl: widget.repo.publicLogoUrl(brand),
+                        showGradeMark: true,
+                        tooltip: kAddOrReplaceLogoTooltip,
+                        onTap: () => _addOrReplaceLogo(feed.shop),
                       ),
                     ],
                   ),

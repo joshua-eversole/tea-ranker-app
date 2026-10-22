@@ -11,11 +11,13 @@ class ProfileRow {
     required this.username,
     this.defaultSugarPercent = 50,
     this.defaultIcePercent = 50,
+    this.tintHomeWithLogos = false,
   });
   final String id;
   final String username;
   final int defaultSugarPercent;
   final int defaultIcePercent;
+  final bool tintHomeWithLogos;
 
   factory ProfileRow.fromMap(Map<String, dynamic> map) => ProfileRow(
     id: map['id'] as String,
@@ -26,7 +28,23 @@ class ProfileRow {
     defaultIcePercent: snapPercent(
       (map['default_ice_percent'] as num?)?.toInt() ?? 50,
     ),
+    tintHomeWithLogos: map['tint_home_with_logos'] as bool? ?? false,
   );
+
+  ProfileRow copyWith({
+    String? username,
+    int? defaultSugarPercent,
+    int? defaultIcePercent,
+    bool? tintHomeWithLogos,
+  }) {
+    return ProfileRow(
+      id: id,
+      username: username ?? this.username,
+      defaultSugarPercent: defaultSugarPercent ?? this.defaultSugarPercent,
+      defaultIcePercent: defaultIcePercent ?? this.defaultIcePercent,
+      tintHomeWithLogos: tintHomeWithLogos ?? this.tintHomeWithLogos,
+    );
+  }
 }
 
 final _latin = RegExp(r'[A-Za-z]');
