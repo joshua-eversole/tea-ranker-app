@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../data/social.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
+import '../widgets/drink_visit_facts.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
@@ -146,7 +146,6 @@ class FriendDrinkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final letter = drink.letter?.letter ?? '—';
-    final date = DateFormat.yMMMd().format(drink.loggedAt);
     return GradeWashSurface(
       mark: drink.letter?.letter,
       child: Padding(
@@ -178,24 +177,7 @@ class FriendDrinkCard extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 6,
-                    children: [
-                      _IconFact(
-                        icon: Icons.water_drop_outlined,
-                        text: '${drink.sugarLevel}%',
-                      ),
-                      _IconFact(
-                        icon: Icons.ac_unit,
-                        text: '${drink.iceLevel}%',
-                      ),
-                      _IconFact(
-                        icon: Icons.calendar_today_outlined,
-                        text: date,
-                      ),
-                    ],
-                  ),
+                  DrinkVisitFacts(drink: drink),
                   if (drink.companions.isNotEmpty)
                     WithCompanionsLine(
                       companions: drink.companions,
@@ -220,24 +202,6 @@ class FriendDrinkCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _IconFact extends StatelessWidget {
-  const _IconFact({required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: AppColors.chocolate),
-        const SizedBox(width: 4),
-        Text(text, style: const TextStyle(color: AppColors.chocolate)),
-      ],
     );
   }
 }

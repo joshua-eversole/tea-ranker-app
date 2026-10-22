@@ -22,6 +22,7 @@ ShopBrand brand({
   String? nameZh,
   String? logoPath,
   String? selectedHex,
+  List<String> paletteHex = const [],
   bool tintHome = true,
 }) => ShopBrand(
   id: 'b',
@@ -29,6 +30,7 @@ ShopBrand brand({
   nameZh: nameZh,
   logoPath: logoPath,
   selectedHex: selectedHex,
+  paletteHex: paletteHex,
   tintHome: tintHome,
 );
 
@@ -137,6 +139,22 @@ void main() {
     expect(kTintHomeRowLabel, 'Tint Home row');
     expect(kPickMainColorTitle, 'Pick the main color');
     expect(kAddOrReplaceLogoTooltip, 'Add or replace logo');
+    expect(kCustomColorLabel, 'Custom');
+    expect(kCustomRgbLabel, 'Custom RGB');
+  });
+
+  test('null selected_hex still washes from palette', () {
+    final band = bandForAverage(4.5);
+    final wash = shopDetailsPageWash(
+      brand: brand(
+        logoPath: 'p',
+        selectedHex: null,
+        paletteHex: const ['#1565C0', '#EEEEEE'],
+      ),
+      band: band,
+    );
+    expect(wash, logoPageWash('#1565C0'));
+    expect(wash, isNot(shopPageWash(band)));
   });
 
   test('home circle is 96, overhangs, shifted left, names inset', () {
@@ -275,6 +293,53 @@ void main() {
     );
     expect(find.text('S'), findsOneWidget);
     expect(find.byType(BobaCupIcon), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(ShopLogoCircle),
+        matching: find.byType(OverflowBox),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('shop-details header circle lays out in an unbounded Row', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(
+          backgroundColor: AppColors.cream,
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
+                child: Row(
+                  children: [
+                    const Expanded(child: Text('50 Lan / 五十嵐')),
+                    ShopLogoCircle(
+                      size: AppLayout.shopHeaderGradeSize,
+                      band: bandForAverage(5),
+                      brand: brand(logoPath: 'p', selectedHex: null),
+                      showGradeMark: true,
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+              ),
+              const Text('2 visits'),
+              const Expanded(child: Text('Visits')),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('50 Lan / 五十嵐'), findsOneWidget);
+    expect(find.text('2 visits'), findsOneWidget);
+    expect(find.text('Visits'), findsOneWidget);
+    expect(find.byTooltip(kAddOrReplaceLogoTooltip), findsOneWidget);
+    expect(find.text('S'), findsOneWidget);
   });
 
   testWidgets('logo sheet has add/replace, color title, and tint default on', (
@@ -333,5 +398,46 @@ void main() {
       tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
       isFalse,
     );
+  });
+
+  testWidgets('logo sheet recolors from stored palette without a new image', (
+    tester,
+  ) async {
+    ShopLogoSheetResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () async {
+                  result = await showShopLogoSheet(
+                    context: context,
+                    brand: brand(
+                      logoPath: 'p',
+                      selectedHex: '#1565C0',
+                      paletteHex: const ['#1565C0', '#E6B422'],
+                    ),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text(kPickMainColorTitle), findsOneWidget);
+    expect(find.text(kCustomRgbLabel), findsOneWidget);
+    expect(find.text('Hex'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(result, isNotNull);
+    expect(result!.bytes, isNull);
+    expect(result!.selectedHex, '#1565C0');
+    expect(result!.paletteHex, ['#1565C0', '#E6B422']);
   });
 }

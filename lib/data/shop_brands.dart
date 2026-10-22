@@ -8,6 +8,8 @@ import 'models.dart';
 const kTintHomeRowLabel = 'Tint Home row';
 const kPickMainColorTitle = 'Pick the main color';
 const kAddOrReplaceLogoTooltip = 'Add or replace logo';
+const kCustomColorLabel = 'Custom';
+const kCustomRgbLabel = 'Custom RGB';
 const kShopLogosSqlHint =
     'Couldn’t save shop logo settings. Check shop_brands selected_hex / logo_path.';
 const kShopLogosBucket = 'shop-logos';

@@ -5,7 +5,7 @@ import 'package:tea_ranker/theme/tokens.dart';
 
 void main() {
   test('display version is v. 0.20', () {
-    expect(kAppDisplayVersion, 'v. 0.20');
+    expect(kAppDisplayVersion, 'v. 0.21');
   });
 
   testWidgets('Profile header shows a quiet version at the top right', (

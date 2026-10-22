@@ -187,8 +187,8 @@ class DrinkEntryRow {
     required this.shopId,
     required this.teaName,
     required this.drinkType,
-    required this.sugarLevel,
-    required this.iceLevel,
+    this.sugarLevel,
+    this.iceLevel,
     required this.price,
     required this.grade,
     required this.overallGrade,
@@ -205,8 +205,10 @@ class DrinkEntryRow {
   final String shopId;
   final String teaName;
   final String drinkType;
-  final int sugarLevel;
-  final int iceLevel;
+
+  /// Null = Fixed / unassigned (shop specials). Do not treat as 0.
+  final int? sugarLevel;
+  final int? iceLevel;
   final double price;
   final int? grade;
   final String? overallGrade;
@@ -248,8 +250,8 @@ class DrinkEntryRow {
       shopId: map['shop_id'] as String,
       teaName: map['tea_name'] as String,
       drinkType: map['drink_type'] as String,
-      sugarLevel: (map['sugar_level'] as num).toInt(),
-      iceLevel: (map['ice_level'] as num).toInt(),
+      sugarLevel: (map['sugar_level'] as num?)?.toInt(),
+      iceLevel: (map['ice_level'] as num?)?.toInt(),
       price: (map['price'] as num).toDouble(),
       grade: (map['grade'] as num?)?.toInt(),
       overallGrade: map['overall_grade'] as String?,

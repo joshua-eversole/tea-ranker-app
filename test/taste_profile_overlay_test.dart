@@ -19,8 +19,8 @@ DrinkEntryRow drink({
   required String shopId,
   required DateTime loggedAt,
   String drinkType = 'Tea-based',
-  int sugar = 50,
-  int ice = 50,
+  int? sugar = 50,
+  int? ice = 50,
   double price = 65,
   int grade = 4,
   List<ToppingRow> toppings = const [],
@@ -73,6 +73,30 @@ void main() {
     expect(formatAveragePercent(profile.averageIcePercent), '—');
     expect(formatAveragePrice(profile.averagePrice), '—');
     expect(formatDaysSinceLastDrink(profile.daysSinceLastDrink), '—');
+  });
+
+  test('taste averages skip Fixed (null) sugar and ice', () {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: '1',
+          shopId: lan.id,
+          loggedAt: DateTime(2026, 10, 1),
+          sugar: null,
+          ice: 50,
+        ),
+        drink(
+          id: '2',
+          shopId: lan.id,
+          loggedAt: DateTime(2026, 10, 2),
+          sugar: 30,
+          ice: null,
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.averageSugarPercent, 30);
+    expect(profile.averageIcePercent, 50);
   });
 
   test('average ice rounds to the nearest 1%', () {

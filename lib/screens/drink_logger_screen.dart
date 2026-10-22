@@ -19,6 +19,34 @@ import '../widgets/with_companions_line.dart';
 String drinkLoggerTitle({required bool editing}) =>
     editing ? 'Edit drink' : 'Log a drink';
 
+const kFixedLevelLabel = 'Fixed';
+
+bool loggerCanSave({
+  required String shop,
+  required String tea,
+  required String priceText,
+  required String? base,
+  required LetterGrade? grade,
+  required bool sugarFixed,
+  required bool iceFixed,
+  required double sugar,
+  required double ice,
+  required bool saving,
+}) {
+  final price = double.tryParse(priceText.trim());
+  final sugarOk = sugarFixed || (sugar >= 0 && sugar <= 100);
+  final iceOk = iceFixed || (ice >= 0 && ice <= 100);
+  return shop.trim().isNotEmpty &&
+      tea.trim().isNotEmpty &&
+      price != null &&
+      price >= 0 &&
+      base != null &&
+      grade != null &&
+      sugarOk &&
+      iceOk &&
+      !saving;
+}
+
 class DrinkLoggerScreen extends StatefulWidget {
   const DrinkLoggerScreen({
     super.key,
@@ -48,6 +76,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   String? _base;
   late double _sugar;
   late double _ice;
+  bool _sugarFixed = false;
+  bool _iceFixed = false;
   bool _defaultsApplied = false;
   bool _touchedLevels = false;
   LetterGrade? _grade;
@@ -126,8 +156,10 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
       entry.loggedAt.day,
     );
     _base = drinkBases.contains(entry.drinkType) ? entry.drinkType : null;
-    _sugar = snapPercent(entry.sugarLevel).toDouble();
-    _ice = snapPercent(entry.iceLevel).toDouble();
+    _sugarFixed = entry.sugarLevel == null;
+    _iceFixed = entry.iceLevel == null;
+    _sugar = snapPercent(entry.sugarLevel ?? 50).toDouble();
+    _ice = snapPercent(entry.iceLevel ?? 50).toDouble();
     _grade = entry.letter;
     _selected
       ..clear()
@@ -164,16 +196,18 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     super.dispose();
   }
 
-  bool get _canSave {
-    final price = double.tryParse(_price.text.trim());
-    return _shop.text.trim().isNotEmpty &&
-        _tea.text.trim().isNotEmpty &&
-        price != null &&
-        price >= 0 &&
-        _base != null &&
-        _grade != null &&
-        !_saving;
-  }
+  bool get _canSave => loggerCanSave(
+    shop: _shop.text,
+    tea: _tea.text,
+    priceText: _price.text,
+    base: _base,
+    grade: _grade,
+    sugarFixed: _sugarFixed,
+    iceFixed: _iceFixed,
+    sugar: _sugar,
+    ice: _ice,
+    saving: _saving,
+  );
 
   List<ToppingRow> get _catalog => widget.repo.toppings;
 
@@ -283,8 +317,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           teaName: _tea.text,
           price: double.parse(_price.text.trim()),
           drinkType: _base!,
-          sugarLevel: _sugar.round(),
-          iceLevel: _ice.round(),
+          sugarLevel: _sugarFixed ? null : snapPercent(_sugar.round()),
+          iceLevel: _iceFixed ? null : snapPercent(_ice.round()),
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
@@ -299,8 +333,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           teaName: _tea.text,
           price: double.parse(_price.text.trim()),
           drinkType: _base!,
-          sugarLevel: _sugar.round(),
-          iceLevel: _ice.round(),
+          sugarLevel: _sugarFixed ? null : snapPercent(_sugar.round()),
+          iceLevel: _iceFixed ? null : snapPercent(_ice.round()),
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
@@ -483,19 +517,29 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        PercentGradientSlider(
+                        _LevelSliderRow(
                           label: 'Sugar',
                           value: _sugar,
                           strongColor: AppColors.sugarRed,
+                          fixed: _sugarFixed,
+                          onFixed: (v) => setState(() {
+                            _sugarFixed = v;
+                            _touchedLevels = true;
+                          }),
                           onChanged: (v) {
                             _touchedLevels = true;
                             setState(() => _sugar = v);
                           },
                         ),
-                        PercentGradientSlider(
+                        _LevelSliderRow(
                           label: 'Ice',
                           value: _ice,
                           strongColor: AppColors.iceBlue,
+                          fixed: _iceFixed,
+                          onFixed: (v) => setState(() {
+                            _iceFixed = v;
+                            _touchedLevels = true;
+                          }),
                           onChanged: (v) {
                             _touchedLevels = true;
                             setState(() => _ice = v);
@@ -694,6 +738,54 @@ class _GradeSegments extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _LevelSliderRow extends StatelessWidget {
+  const _LevelSliderRow({
+    required this.label,
+    required this.value,
+    required this.strongColor,
+    required this.fixed,
+    required this.onFixed,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final Color strongColor;
+  final bool fixed;
+  final ValueChanged<bool> onFixed;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: PercentGradientSlider(
+            label: label,
+            value: value,
+            strongColor: strongColor,
+            enabled: !fixed,
+            onChanged: onChanged,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(
+              value: fixed,
+              semanticLabel: kFixedLevelLabel,
+              onChanged: (v) => onFixed(v ?? false),
+            ),
+            const Text(kFixedLevelLabel, style: TextStyle(fontSize: 12)),
+          ],
+        ),
       ],
     );
   }

@@ -64,7 +64,10 @@ class ShopLogoCircle extends StatelessWidget {
     );
   }
 
-  /// Square disc that ignores a short parent max-height (Home row).
+  /// Tight square disc. Home overhangs via a parent OverflowBox with a
+  /// **bounded** height (Positioned top/bottom). Do not wrap this disc in
+  /// OverflowBox — [OverflowBoxFit.max] + an unbounded header Row is infinite
+  /// height and blanks shop details.
   Widget _squareDisc() {
     final url = logoUrl;
     final image = url != null && url.isNotEmpty
@@ -80,18 +83,11 @@ class ShopLogoCircle extends StatelessWidget {
             ),
           )
         : _placeholderChild();
-    return OverflowBox(
-      alignment: Alignment.center,
-      minWidth: size,
-      maxWidth: size,
-      minHeight: size,
-      maxHeight: size,
-      child: SizedBox(
-        key: const ValueKey('shopLogoDisc'),
-        width: size,
-        height: size,
-        child: ClipOval(child: image),
-      ),
+    return SizedBox(
+      key: const ValueKey('shopLogoDisc'),
+      width: size,
+      height: size,
+      child: ClipOval(child: image),
     );
   }
 
@@ -101,12 +97,16 @@ class ShopLogoCircle extends StatelessWidget {
     if (onTap == null) return disc;
     return Tooltip(
       message: tooltip ?? kAddOrReplaceLogoTooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: disc,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: disc,
+          ),
         ),
       ),
     );
