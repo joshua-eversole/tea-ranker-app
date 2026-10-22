@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/models.dart';
+import '../data/shop_brands.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
@@ -89,6 +90,22 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _ToppingColorSettings(repo: repo),
+              const SizedBox(height: 24),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(kTintHomeWithLogosLabel),
+                value: repo.account?.tintHomeWithLogos ?? false,
+                onChanged: (v) async {
+                  try {
+                    await repo.updateTintHomeWithLogos(v);
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text(kShopLogosSqlHint)),
+                    );
+                  }
+                },
+              ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () async {

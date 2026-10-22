@@ -5,6 +5,7 @@ import '../grading/grade.dart';
 import '../theme/topping_colors.dart';
 import 'hangouts.dart';
 import 'models.dart';
+import 'shop_brands.dart';
 import 'social.dart';
 import 'taste_stats.dart';
 
@@ -18,6 +19,7 @@ class TeaRepository extends ChangeNotifier {
   bool loading = false;
   ProfileRow? account;
   List<ToppingRow> toppings = const [];
+  List<ShopBrand> shopBrands = const [];
 
   String? get userId => _client.auth.currentUser?.id;
 
@@ -216,6 +218,8 @@ class TeaRepository extends ChangeNotifier {
       if (profileRow != null) {
         account = ProfileRow.fromMap(profileRow);
       }
+
+      await _loadShopBrands();
 
       profile = buildTasteProfile(entries, shops);
       loading = false;
@@ -535,12 +539,28 @@ class TeaRepository extends ChangeNotifier {
         .eq('id', uid);
     final current = account;
     if (current != null) {
-      account = ProfileRow(
-        id: current.id,
-        username: current.username,
+      account = current.copyWith(
         defaultSugarPercent: sugar,
         defaultIcePercent: ice,
       );
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateTintHomeWithLogos(bool value) async {
+    final uid = userId;
+    if (uid == null) throw StateError('Not signed in');
+    try {
+      await _client
+          .from('profiles')
+          .update({'tint_home_with_logos': value})
+          .eq('id', uid);
+    } catch (_) {
+      rethrow;
+    }
+    final current = account;
+    if (current != null) {
+      account = current.copyWith(tintHomeWithLogos: value);
       notifyListeners();
     }
   }
@@ -1016,12 +1036,88 @@ class TeaRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadShopBrands() async {
+    try {
+      final rows = await _client.from('shop_brands').select();
+      shopBrands = [
+        for (final raw in rows as List)
+          ShopBrand.fromMap(Map<String, dynamic>.from(raw as Map)),
+      ];
+    } catch (_) {
+      shopBrands = const [];
+    }
+  }
+
+  ShopBrand? brandFor(ShopRow shop) => brandForShop(shop, shopBrands);
+
+  String? publicLogoUrl(ShopBrand? brand) {
+    final path = brand?.logoPath;
+    if (path == null || path.trim().isEmpty) return null;
+    return _client.storage.from(kShopLogosBucket).getPublicUrl(path);
+  }
+
+  Future<void> saveShopLogo({
+    required ShopRow shop,
+    required Uint8List bytes,
+    required String contentType,
+    required List<String> paletteHex,
+    required String selectedHex,
+  }) async {
+    var brand = brandForShop(shop, shopBrands);
+    if (brand == null) {
+      try {
+        final inserted = await _client
+            .from('shop_brands')
+            .insert({
+              'name': shop.englishName,
+              'name_zh': shop.chineseName,
+              'palette_hex': paletteHex,
+              'selected_hex': selectedHex,
+            })
+            .select()
+            .single();
+        brand = ShopBrand.fromMap(inserted);
+      } catch (_) {
+        await _loadShopBrands();
+        brand = brandForShop(shop, shopBrands);
+        if (brand == null) rethrow;
+      }
+    }
+    final ext = contentType.contains('png')
+        ? 'png'
+        : contentType.contains('webp')
+        ? 'webp'
+        : 'jpg';
+    final path = '${brand.id}/logo.$ext';
+    await _client.storage
+        .from(kShopLogosBucket)
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+    await _client
+        .from('shop_brands')
+        .update({
+          'logo_path': path,
+          'palette_hex': paletteHex,
+          'selected_hex': selectedHex,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+          'name': shop.englishName ?? brand.name,
+          'name_zh': shop.chineseName ?? brand.nameZh,
+        })
+        .eq('id', brand.id);
+    await _loadShopBrands();
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     await _client.auth.signOut();
     _signInWork = null;
     profile = null;
     account = null;
     toppings = const [];
+    shopBrands = const [];
     notifyListeners();
   }
 }

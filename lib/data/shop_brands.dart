@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+
+import '../grading/grade.dart';
+import '../theme/tokens.dart';
+import '../theme/topping_colors.dart';
+import 'models.dart';
+
+const kTintHomeWithLogosLabel = 'Tint Home rows with shop logos';
+const kPickMainColorTitle = 'Pick the main color';
+const kAddOrReplaceLogoTooltip = 'Add or replace logo';
+const kShopLogosSqlHint =
+    'Paste supabase/shop_brands_and_logos.sql in the Supabase SQL editor.';
+const kShopLogosBucket = 'shop-logos';
+
+/// Left Home circle is slightly larger than the shop row.
+const kHomeLogoCircleSize = 72.0;
+
+class ShopBrand {
+  const ShopBrand({
+    required this.id,
+    this.name,
+    this.nameZh,
+    this.logoPath,
+    this.paletteHex = const [],
+    this.selectedHex,
+  });
+
+  final String id;
+  final String? name;
+  final String? nameZh;
+  final String? logoPath;
+  final List<String> paletteHex;
+  final String? selectedHex;
+
+  String? get englishName => trimToNull(name);
+  String? get chineseName => trimToNull(nameZh);
+
+  String get displayName {
+    final en = englishName;
+    final zh = chineseName;
+    if (en != null && zh != null) return '$en / $zh';
+    return en ?? zh ?? '';
+  }
+
+  bool get hasLogo => logoPath != null && logoPath!.trim().isNotEmpty;
+
+  bool matchesNeedle(String raw) {
+    final n = raw.trim().toLowerCase();
+    if (n.isEmpty) return false;
+    if (englishName?.toLowerCase() == n) return true;
+    if (chineseName?.toLowerCase() == n) return true;
+    if (displayName.toLowerCase() == n) return true;
+    return false;
+  }
+
+  factory ShopBrand.fromMap(Map<String, dynamic> map) {
+    final rawPalette = map['palette_hex'];
+    final palette = <String>[];
+    if (rawPalette is List) {
+      for (final item in rawPalette) {
+        final hex = tryNormalizeColorHex(item?.toString());
+        if (hex != null) palette.add(hex);
+      }
+    }
+    return ShopBrand(
+      id: map['id'] as String,
+      name: map['name'] as String?,
+      nameZh: map['name_zh'] as String?,
+      logoPath: map['logo_path'] as String?,
+      paletteHex: palette,
+      selectedHex: tryNormalizeColorHex(map['selected_hex'] as String?),
+    );
+  }
+}
+
+/// Same rules as the logger: case-insensitive name / name_zh / English / 中文.
+bool shopMatchesBrand(ShopRow shop, ShopBrand brand) {
+  for (final needle in [
+    brand.englishName,
+    brand.chineseName,
+    brand.displayName,
+  ]) {
+    if (needle != null && shop.matchesNeedle(needle)) return true;
+  }
+  for (final needle in [shop.englishName, shop.chineseName, shop.displayName]) {
+    if (needle != null && brand.matchesNeedle(needle)) return true;
+  }
+  return false;
+}
+
+ShopBrand? brandForShop(ShopRow shop, Iterable<ShopBrand> brands) {
+  for (final brand in brands) {
+    if (shopMatchesBrand(shop, brand)) return brand;
+  }
+  return null;
+}
+
+/// Mix [selectedHex] toward cream. Start at [kGradeWashMix]; lift (more cream)
+/// until chocolate body text contrast is at least 4.5:1, or cream’s own
+/// contrast if chocolate-on-cream cannot reach that floor.
+Color logoPageWash(String? selectedHex) {
+  final hue = colorFromHex(selectedHex, fallback: AppColors.seed);
+  final creamContrast = contrastRatio(AppColors.cream, AppColors.chocolate);
+  final floor = creamContrast < kToppingLabelContrastFloor
+      ? creamContrast
+      : kToppingLabelContrastFloor;
+  var mix = kGradeWashMix;
+  var wash = Color.lerp(AppColors.cream, hue, mix)!;
+  while (contrastRatio(wash, AppColors.chocolate) < floor && mix > 0) {
+    mix = (mix - 0.02).clamp(0.0, 1.0);
+    wash = Color.lerp(AppColors.cream, hue, mix)!;
+  }
+  return wash;
+}
+
+Color shopDetailsPageWash({
+  required ShopBrand? brand,
+  required AggregateBand? band,
+}) {
+  if (brand != null && brand.hasLogo && brand.selectedHex != null) {
+    return logoPageWash(brand.selectedHex);
+  }
+  return shopPageWash(band);
+}
+
+Color? homeRowWash({
+  required bool tintHomeWithLogos,
+  required ShopBrand? brand,
+  required String? gradeMark,
+}) {
+  if (tintHomeWithLogos &&
+      brand != null &&
+      brand.hasLogo &&
+      brand.selectedHex != null) {
+    return logoPageWash(brand.selectedHex);
+  }
+  return gradeWash(gradeMark);
+}
+
+List<String> takePaletteHexes(
+  Iterable<Color> colors, {
+  int min = 4,
+  int max = 6,
+}) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final color in colors) {
+    final hex = hexFromColor(color);
+    if (seen.add(hex)) out.add(hex);
+    if (out.length >= max) break;
+  }
+  if (out.length >= min || out.isNotEmpty) return out;
+  return out;
+}
