@@ -12,8 +12,11 @@ const kShopLogosSqlHint =
     'Paste supabase/shop_brands_and_logos.sql in the Supabase SQL editor.';
 const kShopLogosBucket = 'shop-logos';
 
-/// Left Home circle is slightly larger than the shop row.
-const kHomeLogoCircleSize = 80.0;
+/// Left Home circle is slightly larger than the shop row (vertical overflow OK).
+const kHomeLogoCircleSize = 96.0;
+
+/// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
+const kHomeLogoCircleWashMix = 0.30;
 
 /// Gap between the Home circle and the shop name / visit count.
 const kHomeLogoCircleGap = 12.0;
@@ -141,6 +144,18 @@ Color? homeRowWash({
     return logoPageWash(brand.selectedHex);
   }
   return gradeWash(gradeMark);
+}
+
+/// Same grade hue as the row wash, modestly deeper toward the grade fill.
+Color homeLogoCircleFill(String? gradeMark) {
+  if (gradeMark == null || gradeMark.trim().isEmpty || gradeMark == '—') {
+    return Color.lerp(AppColors.cream, AppColors.seed, kHomeLogoCircleWashMix)!;
+  }
+  return Color.lerp(
+    AppColors.cream,
+    colorsForMark(gradeMark).$1,
+    kHomeLogoCircleWashMix,
+  )!;
 }
 
 List<String> takePaletteHexes(

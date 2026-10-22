@@ -5,6 +5,7 @@ import 'package:tea_ranker/data/shop_brands.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/theme/topping_colors.dart';
+import 'package:tea_ranker/widgets/boba_cup_icon.dart';
 import 'package:tea_ranker/widgets/shop_logo_circle.dart';
 
 ShopRow shop({String? name, String? nameZh}) => ShopRow(
@@ -107,16 +108,34 @@ void main() {
   });
 
   test('home circle is larger than the row and leaves room for the name', () {
-    expect(kHomeLogoCircleSize, 80);
-    expect(kHomeLogoCircleSize, greaterThan(72));
+    expect(kHomeLogoCircleSize, 96);
+    expect(kHomeLogoCircleSize, greaterThan(80));
     expect(kHomeLogoTextInset, kHomeLogoCircleSize + kHomeLogoCircleGap);
   });
 
-  testWidgets('home circle without logo is wash fill, not a letter disc', (
+  test('home circle fill is a step darker than the row wash, not the disc', () {
+    const mark = 'A';
+    final fill = homeLogoCircleFill(mark);
+    expect(fill, isNot(gradeWash(mark)));
+    expect(fill, isNot(colorsForMark(mark).$1));
+    expect(kHomeLogoCircleWashMix, greaterThan(kGradeWashMix));
+    expect(kHomeLogoCircleWashMix, lessThan(0.6));
+    expect(
+      fill,
+      Color.lerp(
+        AppColors.cream,
+        colorsForMark(mark).$1,
+        kHomeLogoCircleWashMix,
+      ),
+    );
+  });
+
+  testWidgets('home circle without logo is deeper wash plus boba icon', (
     tester,
   ) async {
     final band = bandForAverage(5);
     final wash = gradeWash(band!.label);
+    final fill = homeLogoCircleFill(band.label);
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTeaTheme(),
@@ -125,21 +144,45 @@ void main() {
           body: ShopLogoCircle(
             size: kHomeLogoCircleSize,
             band: band,
-            fill: wash,
+            showBobaIcon: true,
+            fill: fill,
+            iconColor: wash,
           ),
         ),
       ),
     );
     expect(find.text('S'), findsNothing);
     expect(find.byType(ShopLogoCircle), findsOneWidget);
+    expect(find.byType(BobaCupIcon), findsOneWidget);
     final box = tester.widget<ColoredBox>(
       find.descendant(
         of: find.byType(ShopLogoCircle),
         matching: find.byType(ColoredBox),
       ),
     );
-    expect(box.color, wash);
+    expect(box.color, fill);
     expect(box.color, isNot(colorsForMark(band.label).$1));
+    expect(box.color, isNot(wash));
+  });
+
+  testWidgets('logo cover-crop does not draw the boba icon on the photo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(
+          body: ShopLogoCircle(
+            size: kHomeLogoCircleSize,
+            band: bandForAverage(5),
+            showBobaIcon: true,
+            logoUrl: 'https://example.com/logo.png',
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(BobaCupIcon), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
   });
 
   testWidgets('shop-details header without logo still shows the letter', (
@@ -158,5 +201,6 @@ void main() {
       ),
     );
     expect(find.text('S'), findsOneWidget);
+    expect(find.byType(BobaCupIcon), findsNothing);
   });
 }

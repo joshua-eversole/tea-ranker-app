@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/shop_brands.dart';
 import '../grading/grade.dart';
+import 'boba_cup_icon.dart';
 import 'grade_circle.dart';
 
 class ShopLogoCircle extends StatelessWidget {
@@ -14,7 +15,9 @@ class ShopLogoCircle extends StatelessWidget {
     this.onTap,
     this.tooltip,
     this.showGradeMark = false,
+    this.showBobaIcon = false,
     this.fill,
+    this.iconColor,
   });
 
   final double size;
@@ -28,18 +31,37 @@ class ShopLogoCircle extends StatelessWidget {
   /// Home left circle is wash **fill** only; the letter stays on the right.
   final bool showGradeMark;
 
-  /// Home no-logo fill — same cream mix as the shop row, not the letter disc.
+  /// Home no-logo flair. Never drawn on top of a logo photo.
+  final bool showBobaIcon;
+
+  /// Home no-logo fill — slightly deeper than the row wash.
   final Color? fill;
 
+  /// Lighter row-wash color for the boba cup icon.
+  final Color? iconColor;
+
   Color get _placeholder {
-    return fill ?? gradeWash(band?.label);
+    return fill ?? homeLogoCircleFill(band?.label);
   }
 
   Widget _placeholderChild() {
     if (showGradeMark) {
       return GradeOrDash(band: band, size: size);
     }
-    return ColoredBox(color: _placeholder);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: _placeholder),
+        if (showBobaIcon)
+          Center(
+            child: BobaCupIcon(
+              color: iconColor ?? gradeWash(band?.label),
+              pearlColor: _placeholder,
+              size: size * 0.44,
+            ),
+          ),
+      ],
+    );
   }
 
   @override
