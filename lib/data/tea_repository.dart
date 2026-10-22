@@ -1021,10 +1021,13 @@ class TeaRepository extends ChangeNotifier {
   Future<void> _loadShopBrands() async {
     try {
       final rows = await _client.from('shop_brands').select();
-      shopBrands = [
-        for (final raw in rows as List)
-          ShopBrand.fromMap(Map<String, dynamic>.from(raw as Map)),
-      ];
+      final parsed = <ShopBrand>[];
+      for (final raw in rows as List) {
+        try {
+          parsed.add(ShopBrand.fromMap(Map<String, dynamic>.from(raw as Map)));
+        } catch (_) {}
+      }
+      shopBrands = parsed;
     } catch (_) {
       shopBrands = const [];
     }
@@ -1033,9 +1036,11 @@ class TeaRepository extends ChangeNotifier {
   ShopBrand? brandFor(ShopRow shop) => brandForShop(shop, shopBrands);
 
   String? publicLogoUrl(ShopBrand? brand) {
-    final path = brand?.logoPath;
-    if (path == null || path.trim().isEmpty) return null;
-    return _client.storage.from(kShopLogosBucket).getPublicUrl(path);
+    return resolveLogoUrl(
+      brand?.logoPath,
+      publicUrlFor: (path) =>
+          _client.storage.from(kShopLogosBucket).getPublicUrl(path),
+    );
   }
 
   Future<void> saveShopBrandSettings({
@@ -1048,23 +1053,21 @@ class TeaRepository extends ChangeNotifier {
   }) async {
     var brand = brandForShop(shop, shopBrands);
     if (brand == null) {
-      try {
-        final inserted = await _client
-            .from('shop_brands')
-            .insert({
-              'name': shop.englishName,
-              'name_zh': shop.chineseName,
-              if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
-              'selected_hex': ?selectedHex,
-              'tint_home': tintHome,
-            })
-            .select()
-            .single();
+      final inserted = await _insertBrand({
+        'name': shop.englishName,
+        'name_zh': shop.chineseName,
+        if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+        'selected_hex': ?selectedHex,
+        'tint_home': tintHome,
+      });
+      if (inserted != null) {
         brand = ShopBrand.fromMap(inserted);
-      } catch (_) {
+      } else {
         await _loadShopBrands();
         brand = brandForShop(shop, shopBrands);
-        if (brand == null) rethrow;
+        if (brand == null) {
+          throw StateError('Could not create shop_brands row');
+        }
       }
     }
     String? path;
@@ -1083,20 +1086,51 @@ class TeaRepository extends ChangeNotifier {
             fileOptions: FileOptions(contentType: contentType, upsert: true),
           );
     }
-    await _client
-        .from('shop_brands')
-        .update({
-          'logo_path': ?path,
-          if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
-          'selected_hex': ?selectedHex,
-          'tint_home': tintHome,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-          'name': shop.englishName ?? brand.name,
-          'name_zh': shop.chineseName ?? brand.nameZh,
-        })
-        .eq('id', brand.id);
+    await _updateBrand(brand.id, {
+      'logo_path': ?path,
+      if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
+      'selected_hex': ?selectedHex,
+      'tint_home': tintHome,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'name': shop.englishName ?? brand.name,
+      'name_zh': shop.chineseName ?? brand.nameZh,
+    });
     await _loadShopBrands();
     notifyListeners();
+  }
+
+  Future<Map<String, dynamic>?> _insertBrand(
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      return Map<String, dynamic>.from(
+        await _client.from('shop_brands').insert(payload).select().single()
+            as Map,
+      );
+    } catch (_) {
+      final slim = Map<String, dynamic>.from(payload)
+        ..remove('tint_home')
+        ..remove('updated_at');
+      try {
+        return Map<String, dynamic>.from(
+          await _client.from('shop_brands').insert(slim).select().single()
+              as Map,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  Future<void> _updateBrand(String id, Map<String, dynamic> payload) async {
+    try {
+      await _client.from('shop_brands').update(payload).eq('id', id);
+    } catch (_) {
+      final slim = Map<String, dynamic>.from(payload)
+        ..remove('tint_home')
+        ..remove('updated_at');
+      await _client.from('shop_brands').update(slim).eq('id', id);
+    }
   }
 
   Future<void> signOut() async {

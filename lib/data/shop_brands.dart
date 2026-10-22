@@ -9,7 +9,7 @@ const kTintHomeRowLabel = 'Tint Home row';
 const kPickMainColorTitle = 'Pick the main color';
 const kAddOrReplaceLogoTooltip = 'Add or replace logo';
 const kShopLogosSqlHint =
-    'Paste supabase/shop_brands_and_logos.sql and supabase/shop_brands_tint_home.sql in the Supabase SQL editor.';
+    'Couldn’t save shop logo settings. Check shop_brands selected_hex / logo_path.';
 const kShopLogosBucket = 'shop-logos';
 
 /// Left Home circle is slightly larger than the shop row (vertical overflow OK).
@@ -17,6 +17,12 @@ const kHomeLogoCircleSize = 80.0;
 
 /// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
 const kHomeLogoCircleWashMix = 0.30;
+
+/// Logo page/row wash — stronger than grade wash so the chosen hue reads.
+const kLogoWashMix = 0.40;
+
+/// Never lift logo wash all the way to cream (that looked like grade-only).
+const kLogoWashMixFloor = 0.22;
 
 /// Gap between the Home circle and the shop name / visit count.
 const kHomeLogoCircleGap = 12.0;
@@ -55,49 +61,57 @@ class ShopBrand {
 
   bool get hasLogo => logoPath != null && logoPath!.trim().isNotEmpty;
 
+  /// Chosen chip, or the first extracted palette color if `selected_hex` is empty.
+  String? get effectiveSelectedHex =>
+      selectedHex ?? (paletteHex.isNotEmpty ? paletteHex.first : null);
+
   bool matchesNeedle(String raw) {
-    final n = raw.trim().toLowerCase();
+    final n = _canon(raw);
     if (n.isEmpty) return false;
-    if (englishName?.toLowerCase() == n) return true;
-    if (chineseName?.toLowerCase() == n) return true;
-    if (displayName.toLowerCase() == n) return true;
+    for (final needle in _nameNeedles(englishName, chineseName, displayName)) {
+      if (_canon(needle) == n) return true;
+    }
     return false;
   }
 
   factory ShopBrand.fromMap(Map<String, dynamic> map) {
-    final rawPalette = map['palette_hex'];
-    final palette = <String>[];
-    if (rawPalette is List) {
-      for (final item in rawPalette) {
-        final hex = tryNormalizeColorHex(item?.toString());
-        if (hex != null) palette.add(hex);
-      }
+    final id = _asString(map['id']);
+    if (id == null) {
+      throw FormatException('shop_brands row missing id');
     }
+    final palette = _paletteFrom(map);
+    final selected =
+        tryNormalizeColorHex(_asString(map['selected_hex'])) ??
+        tryNormalizeColorHex(_asString(map['color_hex'])) ??
+        (palette.isNotEmpty ? palette.first : null);
     return ShopBrand(
-      id: map['id'] as String,
-      name: map['name'] as String?,
-      nameZh: map['name_zh'] as String?,
-      logoPath: map['logo_path'] as String?,
+      id: id,
+      name: _asString(map['name']),
+      nameZh: _asString(map['name_zh']) ?? _asString(map['nameZh']),
+      logoPath:
+          _asString(map['logo_path']) ??
+          _asString(map['logo_url']) ??
+          _asString(map['path']),
       paletteHex: palette,
-      selectedHex: tryNormalizeColorHex(map['selected_hex'] as String?),
-      tintHome: map['tint_home'] as bool? ?? true,
+      selectedHex: selected,
+      tintHome: _asBool(map['tint_home']) ?? true,
     );
   }
 }
 
 /// Same rules as the logger: case-insensitive name / name_zh / English / 中文.
 bool shopMatchesBrand(ShopRow shop, ShopBrand brand) {
-  for (final needle in [
+  final brandNeedles = _nameNeedles(
     brand.englishName,
     brand.chineseName,
     brand.displayName,
-  ]) {
-    if (needle != null && shop.matchesNeedle(needle)) return true;
-  }
-  for (final needle in [shop.englishName, shop.chineseName, shop.displayName]) {
-    if (needle != null && brand.matchesNeedle(needle)) return true;
-  }
-  return false;
+  ).map(_canon).where((n) => n.isNotEmpty).toSet();
+  final shopNeedles = _nameNeedles(
+    shop.englishName,
+    shop.chineseName,
+    shop.displayName,
+  ).map(_canon).where((n) => n.isNotEmpty).toSet();
+  return brandNeedles.intersection(shopNeedles).isNotEmpty;
 }
 
 ShopBrand? brandForShop(ShopRow shop, Iterable<ShopBrand> brands) {
@@ -107,19 +121,16 @@ ShopBrand? brandForShop(ShopRow shop, Iterable<ShopBrand> brands) {
   return null;
 }
 
-/// Mix [selectedHex] toward cream. Start at [kGradeWashMix]; lift (more cream)
-/// until chocolate body text contrast is at least 4.5:1, or cream’s own
-/// contrast if chocolate-on-cream cannot reach that floor.
+/// Mix [selectedHex] toward cream. Stronger than grade wash so the hue shows;
+/// lift (more cream) only down to [kLogoWashMixFloor], never to plain cream.
 Color logoPageWash(String? selectedHex) {
   final hue = colorFromHex(selectedHex, fallback: AppColors.seed);
-  final creamContrast = contrastRatio(AppColors.cream, AppColors.chocolate);
-  final floor = creamContrast < kToppingLabelContrastFloor
-      ? creamContrast
-      : kToppingLabelContrastFloor;
-  var mix = kGradeWashMix;
+  var mix = kLogoWashMix;
   var wash = Color.lerp(AppColors.cream, hue, mix)!;
-  while (contrastRatio(wash, AppColors.chocolate) < floor && mix > 0) {
-    mix = (mix - 0.02).clamp(0.0, 1.0);
+  final creamContrast = contrastRatio(AppColors.cream, AppColors.chocolate);
+  while (contrastRatio(wash, AppColors.chocolate) < creamContrast * 0.9 &&
+      mix > kLogoWashMixFloor) {
+    mix = (mix - 0.02).clamp(kLogoWashMixFloor, 1.0);
     wash = Color.lerp(AppColors.cream, hue, mix)!;
   }
   return wash;
@@ -129,20 +140,33 @@ Color shopDetailsPageWash({
   required ShopBrand? brand,
   required AggregateBand? band,
 }) {
-  if (brand != null && brand.hasLogo && brand.selectedHex != null) {
-    return logoPageWash(brand.selectedHex);
+  final hex = brand?.effectiveSelectedHex;
+  if (brand != null && brand.hasLogo && hex != null) {
+    return logoPageWash(hex);
   }
   return shopPageWash(band);
 }
 
 Color? homeRowWash({required ShopBrand? brand, required String? gradeMark}) {
-  if (brand != null &&
-      brand.hasLogo &&
-      brand.selectedHex != null &&
-      brand.tintHome) {
-    return logoPageWash(brand.selectedHex);
+  final hex = brand?.effectiveSelectedHex;
+  if (brand != null && brand.hasLogo && hex != null && brand.tintHome) {
+    return logoPageWash(hex);
   }
   return gradeWash(gradeMark);
+}
+
+/// Storage object path, or a full http(s) URL already stored in the column.
+String? resolveLogoUrl(
+  String? logoPath, {
+  required String Function(String objectPath) publicUrlFor,
+}) {
+  final path = logoPath?.trim();
+  if (path == null || path.isEmpty) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  final object = path.startsWith('$kShopLogosBucket/')
+      ? path.substring(kShopLogosBucket.length + 1)
+      : path;
+  return publicUrlFor(object);
 }
 
 /// Same grade hue as the row wash, modestly deeper toward the grade fill.
@@ -170,5 +194,55 @@ List<String> takePaletteHexes(
     if (out.length >= max) break;
   }
   if (out.length >= min || out.isNotEmpty) return out;
+  return out;
+}
+
+String _canon(String raw) =>
+    raw.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+Iterable<String> _nameNeedles(String? en, String? zh, String display) sync* {
+  if (en != null && en.trim().isNotEmpty) yield en;
+  if (zh != null && zh.trim().isNotEmpty) yield zh;
+  if (display.trim().isNotEmpty) yield display;
+  for (final part in display.split('/')) {
+    final t = part.trim();
+    if (t.isNotEmpty) yield t;
+  }
+}
+
+String? _asString(dynamic value) {
+  if (value == null) return null;
+  final t = value.toString().trim();
+  return t.isEmpty ? null : t;
+}
+
+bool? _asBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final n = value.trim().toLowerCase();
+    if (n == 'true' || n == '1') return true;
+    if (n == 'false' || n == '0') return false;
+  }
+  return null;
+}
+
+List<String> _paletteFrom(Map<String, dynamic> map) {
+  final raw = map['palette_hex'] ?? map['palette'];
+  final out = <String>[];
+  void add(dynamic item) {
+    final hex = tryNormalizeColorHex(_asString(item));
+    if (hex != null && !out.contains(hex)) out.add(hex);
+  }
+
+  if (raw is List) {
+    for (final item in raw) {
+      add(item);
+    }
+  } else if (raw is String) {
+    for (final part in raw.split(RegExp(r'[^#0-9a-fA-F]+'))) {
+      add(part);
+    }
+  }
   return out;
 }

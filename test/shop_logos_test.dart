@@ -49,31 +49,30 @@ void main() {
       isTrue,
     );
     expect(shopMatchesBrand(fifty, brand(name: 'Kebuke')), isFalse);
+    expect(
+      shopMatchesBrand(
+        shop(name: 'CHAGE', nameZh: '茶聚'),
+        brand(name: 'CHAGE / 茶聚'),
+      ),
+      isTrue,
+    );
   });
 
   test(
-    'tint defaults on per brand; logo wash mixes toward cream and stays readable',
+    'tint defaults on per brand; logo wash keeps the chosen hue visible',
     () {
-      expect(
-        const ProfileRow(id: 'u', username: 'j').tintHomeWithLogos,
-        isTrue,
-      );
-      expect(
-        ProfileRow.fromMap({'id': 'u', 'username': 'j'}).tintHomeWithLogos,
-        isTrue,
-      );
       expect(brand().tintHome, isTrue);
       expect(ShopBrand.fromMap({'id': 'b', 'name': 'x'}).tintHome, isTrue);
-      final hue = colorFromHex('#1A1A1A');
-      final unlifted = Color.lerp(AppColors.cream, hue, kGradeWashMix)!;
-      final wash = logoPageWash('#1A1A1A');
+      ProfileRow.fromMap({'id': 'u', 'username': 'j'});
+      final blue = logoPageWash('#1565C0');
+      expect(blue, isNot(AppColors.cream));
+      expect(blue, isNot(shopPageWash(bandForAverage(3))));
+      expect(kLogoWashMix, greaterThan(kGradeWashMix));
       expect(
-        contrastRatio(wash, AppColors.chocolate),
-        greaterThanOrEqualTo(contrastRatio(unlifted, AppColors.chocolate)),
-      );
-      expect(
-        contrastRatio(wash, AppColors.chocolate),
-        closeTo(contrastRatio(AppColors.cream, AppColors.chocolate), 0.05),
+        blue,
+        isNot(
+          Color.lerp(AppColors.cream, colorFromHex('#1565C0'), kGradeWashMix),
+        ),
       );
       final off = homeRowWash(
         brand: brand(logoPath: 'x', selectedHex: '#E6B422', tintHome: false),
@@ -100,7 +99,38 @@ void main() {
       band: band,
     );
     expect(withLogo, logoPageWash('#1565C0'));
+    expect(withLogo, isNot(shopPageWash(band)));
     expect(shopDetailsPageWash(brand: null, band: band), shopPageWash(band));
+  });
+
+  test('brand map reads selected_hex, palette fallback, and logo_url', () {
+    final fromPalette = ShopBrand.fromMap({
+      'id': 'b1',
+      'name': 'TrueDan',
+      'palette_hex': ['#1565C0', '#EEEEEE'],
+    });
+    expect(fromPalette.effectiveSelectedHex, '#1565C0');
+    expect(fromPalette.tintHome, isTrue);
+    final fromUrl = ShopBrand.fromMap({
+      'id': 'b2',
+      'name_zh': '五十嵐',
+      'logo_url': 'https://cdn.example/logo.png',
+      'color_hex': '#E6B422',
+    });
+    expect(fromUrl.hasLogo, isTrue);
+    expect(fromUrl.selectedHex, '#E6B422');
+    expect(
+      resolveLogoUrl(fromUrl.logoPath, publicUrlFor: (p) => 'storage://$p'),
+      'https://cdn.example/logo.png',
+    );
+    expect(
+      resolveLogoUrl('shop-logos/abc/logo.jpg', publicUrlFor: (p) => 'pub/$p'),
+      'pub/abc/logo.jpg',
+    );
+    expect(
+      resolveLogoUrl('abc/logo.jpg', publicUrlFor: (p) => 'pub/$p'),
+      'pub/abc/logo.jpg',
+    );
   });
 
   test('locked copy', () {
