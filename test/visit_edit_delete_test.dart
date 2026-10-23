@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tea_ranker/data/models.dart';
+import 'package:tea_ranker/data/shop_brands.dart';
 import 'package:tea_ranker/data/tea_repository.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/drink_logger_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
+import 'package:tea_ranker/theme/tokens.dart';
 
 DrinkEntryRow sampleDrink({int? sugarLevel = 30, int? iceLevel = 50}) =>
     DrinkEntryRow(
@@ -235,5 +237,43 @@ void main() {
     expect(find.text('0%'), findsNothing);
     expect(find.text('30%'), findsNothing);
     expect(find.text('50%'), findsOneWidget);
+  });
+
+  testWidgets('empty shop notes show the add hint; tap opens edit', (
+    tester,
+  ) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ShopNotesBlock(notes: null, onTap: () => tapped = true),
+        ),
+      ),
+    );
+    expect(find.text(kAddShopNotesHint), findsOneWidget);
+    await tester.tap(find.text(kAddShopNotesHint));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('shop notes text is compact chocolate and tappable', (
+    tester,
+  ) async {
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ShopNotesBlock(
+            notes: 'Ask for less ice',
+            onTap: () => tapped = true,
+          ),
+        ),
+      ),
+    );
+    expect(find.text(kAddShopNotesHint), findsNothing);
+    final text = tester.widget<Text>(find.text('Ask for less ice'));
+    expect(text.style?.color, AppColors.chocolate);
+    expect(text.style?.fontSize, 13);
+    await tester.tap(find.text('Ask for less ice'));
+    expect(tapped, isTrue);
   });
 }

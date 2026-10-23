@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../data/models.dart';
 import '../data/shop_brands.dart';
 import '../theme/logo_palette.dart';
 import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
 
-class ShopLogoSheetResult {
-  const ShopLogoSheetResult({
+class ShopChromeSheetResult {
+  const ShopChromeSheetResult({
     this.bytes,
     this.contentType,
     required this.paletteHex,
     this.selectedHex,
     required this.tintHome,
+    this.tintStrength = kDefaultTintStrength,
+    this.name = '',
+    this.nameZh = '',
   });
 
   final Uint8List? bytes;
@@ -21,13 +25,19 @@ class ShopLogoSheetResult {
   final List<String> paletteHex;
   final String? selectedHex;
   final bool tintHome;
+  final int tintStrength;
+  final String name;
+  final String nameZh;
 }
 
-Future<ShopLogoSheetResult?> showShopLogoSheet({
+typedef ShopLogoSheetResult = ShopChromeSheetResult;
+
+Future<ShopChromeSheetResult?> showShopChromeSheet({
   required BuildContext context,
+  ShopRow? shop,
   ShopBrand? brand,
 }) {
-  return showModalBottomSheet<ShopLogoSheetResult>(
+  return showModalBottomSheet<ShopChromeSheetResult>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.cream,
@@ -39,22 +49,30 @@ Future<ShopLogoSheetResult?> showShopLogoSheet({
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        child: _ShopLogoSheet(brand: brand),
+        child: _ShopChromeSheet(shop: shop, brand: brand),
       );
     },
   );
 }
 
-class _ShopLogoSheet extends StatefulWidget {
-  const _ShopLogoSheet({this.brand});
+Future<ShopChromeSheetResult?> showShopLogoSheet({
+  required BuildContext context,
+  ShopBrand? brand,
+}) {
+  return showShopChromeSheet(context: context, brand: brand);
+}
 
+class _ShopChromeSheet extends StatefulWidget {
+  const _ShopChromeSheet({this.shop, this.brand});
+
+  final ShopRow? shop;
   final ShopBrand? brand;
 
   @override
-  State<_ShopLogoSheet> createState() => _ShopLogoSheetState();
+  State<_ShopChromeSheet> createState() => _ShopChromeSheetState();
 }
 
-class _ShopLogoSheetState extends State<_ShopLogoSheet> {
+class _ShopChromeSheetState extends State<_ShopChromeSheet> {
   late List<String> _palette = List.of(widget.brand?.paletteHex ?? const []);
   late String? _picked =
       widget.brand?.effectiveSelectedHex ??
@@ -62,21 +80,34 @@ class _ShopLogoSheetState extends State<_ShopLogoSheet> {
           ? widget.brand!.paletteHex.first
           : null);
   late bool _tintHome = widget.brand?.tintHome ?? true;
+  late int _tintStrength = snapTintStrength(widget.brand?.tintStrength);
   Uint8List? _bytes;
   String? _contentType;
   bool _picking = false;
   late final TextEditingController _hex = TextEditingController(
     text: _picked ?? '',
   );
+  late final TextEditingController _name = TextEditingController(
+    text: widget.shop?.name ?? '',
+  );
+  late final TextEditingController _nameZh = TextEditingController(
+    text: widget.shop?.nameZh ?? '',
+  );
 
-  bool get _hasPicture =>
-      _bytes != null || (widget.brand?.hasLogo ?? false);
+  bool get _hasPicture => _bytes != null || (widget.brand?.hasLogo ?? false);
 
   bool get _canRecolor => _hasPicture || _palette.isNotEmpty;
+
+  bool get _namesOk {
+    if (widget.shop == null) return true;
+    return _name.text.trim().isNotEmpty || _nameZh.text.trim().isNotEmpty;
+  }
 
   @override
   void dispose() {
     _hex.dispose();
+    _name.dispose();
+    _nameZh.dispose();
     super.dispose();
   }
 
@@ -134,6 +165,26 @@ class _ShopLogoSheetState extends State<_ShopLogoSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              kEditShopSheetTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (widget.shop != null) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'English'),
+                textCapitalization: TextCapitalization.words,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _nameZh,
+                decoration: const InputDecoration(labelText: '中文'),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+            const SizedBox(height: 16),
             Text(
               kPickMainColorTitle,
               style: Theme.of(context).textTheme.titleMedium,
@@ -219,6 +270,33 @@ class _ShopLogoSheetState extends State<_ShopLogoSheet> {
               value: _tintHome,
               onChanged: (v) => setState(() => _tintHome = v),
             ),
+            Text(
+              kTintStrengthLabel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Semantics(
+                    label: kTintStrengthLabel,
+                    value: '$_tintStrength%',
+                    child: Slider(
+                      min: 0,
+                      max: 100,
+                      divisions: 100,
+                      value: _tintStrength.toDouble(),
+                      label: '$_tintStrength%',
+                      onChanged: (v) =>
+                          setState(() => _tintStrength = v.round()),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 44,
+                  child: Text('$_tintStrength%', textAlign: TextAlign.end),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -228,18 +306,23 @@ class _ShopLogoSheetState extends State<_ShopLogoSheet> {
                 ),
                 const Spacer(),
                 FilledButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                      ShopLogoSheetResult(
-                        bytes: _bytes,
-                        contentType: _contentType,
-                        paletteHex: _paletteForSave(),
-                        selectedHex: _picked,
-                        tintHome: _tintHome,
-                      ),
-                    );
-                  },
+                  onPressed: !_namesOk
+                      ? null
+                      : () {
+                          Navigator.pop(
+                            context,
+                            ShopChromeSheetResult(
+                              bytes: _bytes,
+                              contentType: _contentType,
+                              paletteHex: _paletteForSave(),
+                              selectedHex: _picked,
+                              tintHome: _tintHome,
+                              tintStrength: _tintStrength,
+                              name: _name.text,
+                              nameZh: _nameZh.text,
+                            ),
+                          );
+                        },
                   child: const Text('Save'),
                 ),
               ],

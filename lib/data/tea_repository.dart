@@ -1050,7 +1050,9 @@ class TeaRepository extends ChangeNotifier {
     List<String> paletteHex = const [],
     String? selectedHex,
     required bool tintHome,
+    int tintStrength = kDefaultTintStrength,
   }) async {
+    final strength = snapTintStrength(tintStrength);
     var brand = brandForShop(shop, shopBrands);
     if (brand == null) {
       final inserted = await _insertBrand({
@@ -1059,6 +1061,7 @@ class TeaRepository extends ChangeNotifier {
         if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
         'selected_hex': ?selectedHex,
         'tint_home': tintHome,
+        'tint_strength': strength,
       });
       if (inserted != null) {
         brand = ShopBrand.fromMap(inserted);
@@ -1091,6 +1094,7 @@ class TeaRepository extends ChangeNotifier {
       if (paletteHex.isNotEmpty) 'palette_hex': paletteHex,
       'selected_hex': ?selectedHex,
       'tint_home': tintHome,
+      'tint_strength': strength,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
       'name': shop.englishName ?? brand.name,
       'name_zh': shop.chineseName ?? brand.nameZh,
@@ -1110,6 +1114,7 @@ class TeaRepository extends ChangeNotifier {
     } catch (_) {
       final slim = Map<String, dynamic>.from(payload)
         ..remove('tint_home')
+        ..remove('tint_strength')
         ..remove('updated_at');
       try {
         return Map<String, dynamic>.from(
@@ -1128,6 +1133,7 @@ class TeaRepository extends ChangeNotifier {
     } catch (_) {
       final slim = Map<String, dynamic>.from(payload)
         ..remove('tint_home')
+        ..remove('tint_strength')
         ..remove('updated_at');
       await _client.from('shop_brands').update(slim).eq('id', id);
     }
