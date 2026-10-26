@@ -11,6 +11,7 @@ import '../widgets/grade_wash_surface.dart';
 import '../widgets/shop_name_text.dart';
 import '../widgets/taste_stats_card.dart';
 import '../widgets/tea_skeleton.dart';
+import '../widgets/tea_type_chip.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/with_companions_line.dart';
 import 'home_screen.dart';
@@ -166,6 +167,7 @@ class FriendDrinkCard extends StatelessWidget {
                     drink.teaName,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                  TeaTypeVisitLine(drink: drink),
                   if (drink.shop != null) ...[
                     const SizedBox(height: 4),
                     ShopNameText(

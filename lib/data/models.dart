@@ -1,4 +1,5 @@
 import '../grading/grade.dart';
+import 'tea_types.dart';
 
 int snapPercent(int value) {
   final clamped = value.clamp(0, 100);
@@ -195,6 +196,9 @@ class DrinkEntryRow {
     required this.notes,
     required this.loggedAt,
     this.hangoutId,
+    this.teaTypeId,
+    this.teaTypeNote,
+    this.teaType,
     this.shop,
     this.toppings = const [],
     this.companions = const [],
@@ -215,6 +219,9 @@ class DrinkEntryRow {
   final String? notes;
   final DateTime loggedAt;
   final String? hangoutId;
+  final String? teaTypeId;
+  final String? teaTypeNote;
+  final TeaTypeRow? teaType;
   final ShopRow? shop;
   final List<ToppingRow> toppings;
   final List<DrinkCompanionView> companions;
@@ -223,6 +230,10 @@ class DrinkEntryRow {
     if (grade != null) return LetterGrade.fromPoints(grade!);
     return LetterGrade.fromOverall(overallGrade);
   }
+
+  /// `{Type}` or `{Type} - {note}`. Null when no type is set.
+  String? get teaTypeLine =>
+      teaTypeCardLine(typeName: teaType?.name, note: teaTypeNote);
 
   factory DrinkEntryRow.fromMap(Map<String, dynamic> map) {
     ShopRow? shop;
@@ -244,6 +255,12 @@ class DrinkEntryRow {
       }
     }
 
+    TeaTypeRow? teaType;
+    final rawType = map['tea_types'];
+    if (rawType is Map<String, dynamic>) {
+      teaType = TeaTypeRow.fromMap(rawType);
+    }
+
     return DrinkEntryRow(
       id: map['id'] as String,
       userId: map['user_id'] as String,
@@ -258,6 +275,9 @@ class DrinkEntryRow {
       notes: map['notes'] as String?,
       loggedAt: DateTime.parse(map['logged_at'] as String).toLocal(),
       hangoutId: map['hangout_id'] as String?,
+      teaTypeId: map['tea_type_id'] as String? ?? teaType?.id,
+      teaTypeNote: map['tea_type_note'] as String?,
+      teaType: teaType,
       shop: shop,
       toppings: toppings,
     );
@@ -268,6 +288,8 @@ class DrinkEntryRow {
     List<ToppingRow>? toppings,
     List<DrinkCompanionView>? companions,
     String? hangoutId,
+    TeaTypeRow? teaType,
+    String? teaTypeNote,
   }) {
     return DrinkEntryRow(
       id: id,
@@ -283,6 +305,9 @@ class DrinkEntryRow {
       notes: notes,
       loggedAt: loggedAt,
       hangoutId: hangoutId ?? this.hangoutId,
+      teaTypeId: teaType?.id ?? teaTypeId,
+      teaTypeNote: teaTypeNote ?? this.teaTypeNote,
+      teaType: teaType ?? this.teaType,
       shop: shop ?? this.shop,
       toppings: toppings ?? this.toppings,
       companions: companions ?? this.companions,
@@ -372,7 +397,7 @@ class TasteProfile {
   bool get isEmpty => entries.isEmpty;
 }
 
-const drinkBases = <String>['Milk-based', 'Tea-based', 'Fruit-based', 'Other'];
+const drinkBases = <String>[kDrinkTypeMilk, kDrinkTypeTea, kDrinkTypeFruit];
 
 const newUserToppingSeeds = <String>[
   'Boba',

@@ -78,6 +78,8 @@ void main() {
     );
     expect(payload['sugar_level'], isNull);
     expect(payload['ice_level'], isNull);
+    expect(payload['tea_type_id'], isNull);
+    expect(payload['tea_type_note'], isNull);
   });
 
   test('fromMap keeps null sugar/ice, does not coerce to 0', () {
@@ -99,13 +101,12 @@ void main() {
     expect(row.iceLevel, isNull);
   });
 
-  test('Save still requires shop, drink, price, base, grade; Fixed skips %', () {
+  test('Save requires shop, drink, price, grade; base defaults Tea-based', () {
     expect(
       loggerCanSave(
         shop: '50 Lan',
         tea: 'Milk tea',
         priceText: '65',
-        base: 'Milk-based',
         grade: LetterGrade.a,
         sugarFixed: true,
         iceFixed: true,
@@ -120,7 +121,6 @@ void main() {
         shop: '',
         tea: 'Milk tea',
         priceText: '65',
-        base: 'Milk-based',
         grade: LetterGrade.a,
         sugarFixed: true,
         iceFixed: false,
