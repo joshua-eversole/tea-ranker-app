@@ -140,12 +140,30 @@ class TeaRepository extends ChangeNotifier {
             'name': seed.name,
             'is_primary': seed.isPrimary,
             'is_user_added': false,
+            'color_hex': seed.colorHex,
+            'color_intensity': kToppingDefaultIntensity,
           },
       ]);
-    } catch (_) {}
+    } catch (_) {
+      try {
+        await _client.from('tea_types').insert([
+          for (final seed in toInsert)
+            {
+              'user_id': uid,
+              'name': seed.name,
+              'is_primary': seed.isPrimary,
+              'is_user_added': false,
+            },
+        ]);
+      } catch (_) {}
+    }
   }
 
-  Future<TeaTypeRow> matchOrCreateTeaType(String raw) async {
+  Future<TeaTypeRow> matchOrCreateTeaType(
+    String raw, {
+    String? colorHex,
+    int? colorIntensity,
+  }) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
@@ -158,28 +176,57 @@ class TeaRepository extends ChangeNotifier {
       if (t.name.toLowerCase() == name.toLowerCase()) return t;
     }
     Map<String, dynamic>? inserted;
-    try {
-      inserted = Map<String, dynamic>.from(
-        await _client
-                .from('tea_types')
-                .insert({
-                  'user_id': uid,
-                  'name': name,
-                  'is_primary': false,
-                  'is_user_added': true,
-                })
-                .select()
-                .single()
-            as Map,
-      );
-    } catch (_) {
+    Object? lastError;
+    final hex = normalizeColorHex(
+      colorHex ??
+          colorHexForNewTeaType(
+            name,
+            existingHexes: teaTypes.map((t) => effectiveTeaTypeColorHex(t)),
+          ),
+    );
+    final intensity = snapIntensity(colorIntensity);
+    for (final payload in [
+      {
+        'user_id': uid,
+        'name': name,
+        'is_primary': false,
+        'is_user_added': true,
+        'color_hex': hex,
+        'color_intensity': intensity,
+      },
+      {
+        'user_id': uid,
+        'name': name,
+        'is_primary': false,
+        'is_user_added': true,
+        'color_hex': hex,
+      },
+      {
+        'user_id': uid,
+        'name': name,
+        'is_primary': false,
+        'is_user_added': true,
+      },
+    ]) {
+      try {
+        inserted = Map<String, dynamic>.from(
+          await _client.from('tea_types').insert(payload).select().single()
+              as Map,
+        );
+        lastError = null;
+        break;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (inserted == null) {
       final rows =
           await _client.from('tea_types').select().eq('user_id', uid) as List;
       for (final e in rows) {
         final row = TeaTypeRow.fromMap(Map<String, dynamic>.from(e as Map));
         if (row.name.toLowerCase() == name.toLowerCase()) return row;
       }
-      rethrow;
+      throw lastError ?? StateError('Couldn’t add that tea type.');
     }
     final row = TeaTypeRow.fromMap(inserted);
     teaTypes = [...teaTypes, row];
@@ -700,6 +747,52 @@ class TeaRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateTeaTypeColor({
+    required String teaTypeId,
+    required String colorHex,
+    int? colorIntensity,
+  }) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final hex = normalizeColorHex(colorHex);
+    final intensity = snapIntensity(colorIntensity);
+    try {
+      await _client
+          .from('tea_types')
+          .update({'color_hex': hex, 'color_intensity': intensity})
+          .eq('id', teaTypeId)
+          .eq('user_id', uid);
+    } catch (_) {
+      await _client
+          .from('tea_types')
+          .update({'color_hex': hex})
+          .eq('id', teaTypeId)
+          .eq('user_id', uid);
+    }
+    teaTypes = [
+      for (final t in teaTypes)
+        if (t.id == teaTypeId)
+          t.copyWith(colorHex: hex, colorIntensity: intensity)
+        else
+          t,
+    ];
+    final current = profile;
+    if (current != null) {
+      final entries = [
+        for (final e in current.entries)
+          e.withRelations(
+            teaType: e.teaType?.id == teaTypeId
+                ? e.teaType!.copyWith(colorHex: hex, colorIntensity: intensity)
+                : e.teaType,
+          ),
+      ];
+      profile = buildTasteProfile(entries, current.shops);
+    }
+    notifyListeners();
+  }
+
   Future<void> updateShopNotes({
     required String shopId,
     required String? notes,
@@ -713,6 +806,9 @@ class TeaRepository extends ChangeNotifier {
   }
 
   static const _friendDrinkSelect =
+      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, hangout_id, tea_type_id, tea_type_note, tea_types(id, name, is_primary, is_user_added, color_hex, color_intensity), shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
+
+  static const _friendDrinkSelectNoColor =
       'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, hangout_id, tea_type_id, tea_type_note, tea_types(id, name, is_primary, is_user_added), shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
 
   Future<Map<String, List<DrinkCompanionView>>> _companionsByDrink(
@@ -774,13 +870,21 @@ class TeaRepository extends ChangeNotifier {
           .eq('user_id', friendId)
           .order('logged_at', ascending: false);
     } catch (_) {
-      entryRows = await _client
-          .from('drink_entries')
-          .select(
-            'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at',
-          )
-          .eq('user_id', friendId)
-          .order('logged_at', ascending: false);
+      try {
+        entryRows = await _client
+            .from('drink_entries')
+            .select(_friendDrinkSelectNoColor)
+            .eq('user_id', friendId)
+            .order('logged_at', ascending: false);
+      } catch (_) {
+        entryRows = await _client
+            .from('drink_entries')
+            .select(
+              'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at',
+            )
+            .eq('user_id', friendId)
+            .order('logged_at', ascending: false);
+      }
     }
     final shopRows = await _client
         .from('shops')

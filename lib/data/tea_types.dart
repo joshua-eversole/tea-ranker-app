@@ -1,3 +1,5 @@
+import '../theme/topping_colors.dart';
+
 const kDrinkTypeMilk = 'Milk-based';
 const kDrinkTypeFruit = 'Fruit-based';
 const kDrinkTypeTea = 'Tea-based';
@@ -27,19 +29,43 @@ const kSecondarySeedTeaTypeNames = <String>[
 ];
 
 class TeaTypeSeed {
-  const TeaTypeSeed({required this.name, required this.isPrimary});
+  const TeaTypeSeed({
+    required this.name,
+    required this.isPrimary,
+    required this.colorHex,
+  });
   final String name;
   final bool isPrimary;
+  final String colorHex;
 }
 
+/// Logger / SQL seed fills. Keys are lowercase; Pu’er also matches ASCII apostrophe.
+const namedTeaTypeColorHex = <String, String>{
+  'black': kTeaTypeBlackHex,
+  'green': kTeaTypeGreenHex,
+  'oolong': kTeaTypeOolongHex,
+  'matcha': kTeaTypeMatchaHex,
+  'hojicha': kTeaTypeHojichaHex,
+  "pu'er": kTeaTypePuerHex,
+  'white': kTeaTypeWhiteHex,
+};
+
+const kTeaTypeBlackHex = '#3E2723';
+const kTeaTypeGreenHex = '#43A047';
+const kTeaTypeOolongHex = '#E6B422';
+const kTeaTypeMatchaHex = '#8BC34A';
+const kTeaTypeHojichaHex = '#795548';
+const kTeaTypePuerHex = '#C4A484';
+const kTeaTypeWhiteHex = '#FFF8E1';
+
 const newUserTeaTypeSeeds = <TeaTypeSeed>[
-  TeaTypeSeed(name: 'Black', isPrimary: true),
-  TeaTypeSeed(name: 'Green', isPrimary: true),
-  TeaTypeSeed(name: 'Oolong', isPrimary: true),
-  TeaTypeSeed(name: 'Matcha', isPrimary: false),
-  TeaTypeSeed(name: 'Hojicha', isPrimary: false),
-  TeaTypeSeed(name: kPuerName, isPrimary: false),
-  TeaTypeSeed(name: 'White', isPrimary: false),
+  TeaTypeSeed(name: 'Black', isPrimary: true, colorHex: kTeaTypeBlackHex),
+  TeaTypeSeed(name: 'Green', isPrimary: true, colorHex: kTeaTypeGreenHex),
+  TeaTypeSeed(name: 'Oolong', isPrimary: true, colorHex: kTeaTypeOolongHex),
+  TeaTypeSeed(name: 'Matcha', isPrimary: false, colorHex: kTeaTypeMatchaHex),
+  TeaTypeSeed(name: 'Hojicha', isPrimary: false, colorHex: kTeaTypeHojichaHex),
+  TeaTypeSeed(name: kPuerName, isPrimary: false, colorHex: kTeaTypePuerHex),
+  TeaTypeSeed(name: 'White', isPrimary: false, colorHex: kTeaTypeWhiteHex),
 ];
 
 class TeaTypeRow {
@@ -49,6 +75,8 @@ class TeaTypeRow {
     required this.userId,
     required this.isPrimary,
     required this.isUserAdded,
+    this.colorHex,
+    this.colorIntensity,
   });
 
   final String id;
@@ -56,6 +84,8 @@ class TeaTypeRow {
   final String? userId;
   final bool isPrimary;
   final bool isUserAdded;
+  final String? colorHex;
+  final int? colorIntensity;
 
   factory TeaTypeRow.fromMap(Map<String, dynamic> map) => TeaTypeRow(
     id: map['id'] as String,
@@ -63,7 +93,36 @@ class TeaTypeRow {
     userId: map['user_id'] as String?,
     isPrimary: map['is_primary'] as bool? ?? false,
     isUserAdded: map['is_user_added'] as bool? ?? true,
+    colorHex: map['color_hex'] as String?,
+    colorIntensity: (map['color_intensity'] as num?)?.toInt(),
   );
+
+  TeaTypeRow copyWith({String? colorHex, int? colorIntensity}) {
+    return TeaTypeRow(
+      id: id,
+      name: name,
+      userId: userId,
+      isPrimary: isPrimary,
+      isUserAdded: isUserAdded,
+      colorHex: colorHex ?? this.colorHex,
+      colorIntensity: colorIntensity ?? this.colorIntensity,
+    );
+  }
+}
+
+String teaTypeColorKey(String name) {
+  return name.trim().toLowerCase().replaceAll('’', "'").replaceAll('‘', "'");
+}
+
+String? namedColorHexForTeaType(String name) {
+  return namedTeaTypeColorHex[teaTypeColorKey(name)];
+}
+
+/// Stored hex, else the named seed, else null (caller picks a palette color).
+String? effectiveTeaTypeColorHex(TeaTypeRow row) {
+  final stored = row.colorHex?.trim();
+  if (stored != null && stored.isNotEmpty) return stored;
+  return namedColorHexForTeaType(row.name);
 }
 
 /// Milk wins if both; fruit only → Fruit-based; neither → Tea-based.
@@ -125,4 +184,13 @@ List<TeaTypeRow> secondaryTeaTypes(Iterable<TeaTypeRow> catalog) {
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   return [...ordered, ...extras];
+}
+
+String colorHexForNewTeaType(
+  String name, {
+  required Iterable<String?> existingHexes,
+}) {
+  final named = namedColorHexForTeaType(name);
+  if (named != null) return named;
+  return nextBrightPaletteHex(existingHexes);
 }

@@ -6,7 +6,11 @@ import 'package:tea_ranker/data/tea_types.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/friend_taste_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
+import 'package:tea_ranker/theme/topping_colors.dart';
 import 'package:tea_ranker/widgets/base_toggles.dart';
+import 'package:tea_ranker/widgets/milk_fruit_icons.dart';
+import 'package:tea_ranker/widgets/tea_type_chip.dart';
+import 'package:tea_ranker/widgets/topping_chip.dart';
 
 DrinkEntryRow typedDrink({String? note}) {
   const type = TeaTypeRow(
@@ -221,4 +225,114 @@ void main() {
     expect(fruit, isTrue);
     expect(drinkTypeFromToggles(milk: milk, fruit: fruit), kDrinkTypeMilk);
   });
+
+  test('named tea type fills; extras pick a palette color', () {
+    expect(namedColorHexForTeaType('Black'), kTeaTypeBlackHex);
+    expect(namedColorHexForTeaType('Green'), kTeaTypeGreenHex);
+    expect(namedColorHexForTeaType('Oolong'), kTeaTypeOolongHex);
+    expect(namedColorHexForTeaType('Matcha'), kTeaTypeMatchaHex);
+    expect(namedColorHexForTeaType('Hojicha'), kTeaTypeHojichaHex);
+    expect(namedColorHexForTeaType(kPuerName), kTeaTypePuerHex);
+    expect(namedColorHexForTeaType("Pu'er"), kTeaTypePuerHex);
+    expect(namedColorHexForTeaType('White'), kTeaTypeWhiteHex);
+    expect(
+      colorHexForNewTeaType('Yellow', existingHexes: const []),
+      toppingBrightPaletteHex.first.toUpperCase(),
+    );
+    const stored = TeaTypeRow(
+      id: '1',
+      name: 'Matcha',
+      userId: 'u',
+      isPrimary: false,
+      isUserAdded: false,
+      colorHex: '#123456',
+    );
+    expect(effectiveTeaTypeColorHex(stored), '#123456');
+    const uncolored = TeaTypeRow(
+      id: '2',
+      name: 'Matcha',
+      userId: 'u',
+      isPrimary: false,
+      isUserAdded: false,
+    );
+    expect(effectiveTeaTypeColorHex(uncolored), kTeaTypeMatchaHex);
+  });
+
+  testWidgets(
+    'row 1 is three half-style leaf tiles; row 2 scrolls without icons',
+    (tester) async {
+      final catalog = [
+        for (final s in newUserTeaTypeSeeds)
+          TeaTypeRow(
+            id: s.name,
+            name: s.name,
+            userId: 'u',
+            isPrimary: s.isPrimary,
+            isUserAdded: false,
+            colorHex: s.colorHex,
+          ),
+        const TeaTypeRow(
+          id: 'Yellow',
+          name: 'Yellow',
+          userId: 'u',
+          isPrimary: false,
+          isUserAdded: true,
+          colorHex: '#FFF59D',
+        ),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                TeaTypePrimaryRow(
+                  types: primaryTeaTypes(catalog),
+                  selectedId: 'Black',
+                  onToggle: (_) {},
+                ),
+                TeaTypeSecondaryScroller(
+                  types: secondaryTeaTypes(catalog),
+                  selectedId: null,
+                  onToggle: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Black'), findsOneWidget);
+      expect(find.text('Green'), findsOneWidget);
+      expect(find.text('Oolong'), findsOneWidget);
+      expect(find.byType(TeaLeafIcon), findsNWidgets(3));
+
+      final blackBox = tester.getRect(
+        find.ancestor(of: find.text('Black'), matching: find.byType(InkWell)),
+      );
+      final oolongBox = tester.getRect(
+        find.ancestor(of: find.text('Oolong'), matching: find.byType(InkWell)),
+      );
+      expect(blackBox.right, lessThan(oolongBox.left));
+      expect((blackBox.width - oolongBox.width).abs(), lessThan(2));
+
+      expect(find.text('Matcha'), findsOneWidget);
+      expect(find.text('Yellow'), findsOneWidget);
+      expect(find.byType(ListView), findsOneWidget);
+      expect(find.byType(Wrap), findsNothing);
+      expect(find.byType(ToppingChip), findsNWidgets(5));
+      expect(
+        tester.widget<ListView>(find.byType(ListView)).scrollDirection,
+        Axis.horizontal,
+      );
+
+      final matchaFill = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.widgetWithText(ToppingChip, 'Matcha'),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      final matchaDeco = matchaFill.decoration! as ShapeDecoration;
+      expect(matchaDeco.color, colorFromHex(kTeaTypeMatchaHex));
+    },
+  );
 }

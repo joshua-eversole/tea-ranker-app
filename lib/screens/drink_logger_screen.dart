@@ -234,6 +234,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           userId: null,
           isPrimary: s.isPrimary,
           isUserAdded: false,
+          colorHex: s.colorHex,
         ),
     ];
   }
@@ -362,8 +363,23 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
         return;
       }
     }
+    if (!mounted) return;
+    final picked = await showToppingColorPicker(
+      context: context,
+      toppingName: name,
+      initialHex: colorHexForNewTeaType(
+        name,
+        existingHexes: _typeCatalog.map(effectiveTeaTypeColorHex),
+      ),
+      confirmLabel: 'Add',
+    );
+    if (picked == null || !mounted) return;
     try {
-      final row = await widget.repo.matchOrCreateTeaType(name);
+      final row = await widget.repo.matchOrCreateTeaType(
+        name,
+        colorHex: picked.colorHex,
+        colorIntensity: picked.intensity,
+      );
       if (!mounted) return;
       setState(() {
         _teaTypeId = row.id;
@@ -589,31 +605,16 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final t in primaryTeaTypes(_typeCatalog))
-                              TeaTypeChip(
-                                label: t.name,
-                                large: true,
-                                selected: _teaTypeId == t.id,
-                                onTap: () => _toggleTeaType(t),
-                              ),
-                          ],
+                        TeaTypePrimaryRow(
+                          types: primaryTeaTypes(_typeCatalog),
+                          selectedId: _teaTypeId,
+                          onToggle: _toggleTeaType,
                         ),
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final t in secondaryTeaTypes(_typeCatalog))
-                              TeaTypeChip(
-                                label: t.name,
-                                selected: _teaTypeId == t.id,
-                                onTap: () => _toggleTeaType(t),
-                              ),
-                          ],
+                        TeaTypeSecondaryScroller(
+                          types: secondaryTeaTypes(_typeCatalog),
+                          selectedId: _teaTypeId,
+                          onToggle: _toggleTeaType,
                         ),
                         const SizedBox(height: 8),
                         Row(
