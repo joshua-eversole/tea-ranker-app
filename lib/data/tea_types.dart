@@ -26,7 +26,12 @@ const kSecondarySeedTeaTypeNames = <String>[
   'Hojicha',
   kPuerName,
   'White',
+  'Jasmine',
+  'Tieguanyin',
 ];
+
+/// Same 16% cream mix as Home grade wash (`kGradeWashMix`). Row 1 tiles only.
+const kTeaTypePrimaryIntensity = 16;
 
 class TeaTypeSeed {
   const TeaTypeSeed({
@@ -48,6 +53,8 @@ const namedTeaTypeColorHex = <String, String>{
   'hojicha': kTeaTypeHojichaHex,
   "pu'er": kTeaTypePuerHex,
   'white': kTeaTypeWhiteHex,
+  'jasmine': kTeaTypeJasmineHex,
+  'tieguanyin': kTeaTypeTieguanyinHex,
 };
 
 const kTeaTypeBlackHex = '#3E2723';
@@ -57,6 +64,8 @@ const kTeaTypeMatchaHex = '#8BC34A';
 const kTeaTypeHojichaHex = '#795548';
 const kTeaTypePuerHex = '#C4A484';
 const kTeaTypeWhiteHex = '#FFF8E1';
+const kTeaTypeJasmineHex = '#E4EEC0';
+const kTeaTypeTieguanyinHex = '#A8B57A';
 
 const newUserTeaTypeSeeds = <TeaTypeSeed>[
   TeaTypeSeed(name: 'Black', isPrimary: true, colorHex: kTeaTypeBlackHex),
@@ -66,7 +75,33 @@ const newUserTeaTypeSeeds = <TeaTypeSeed>[
   TeaTypeSeed(name: 'Hojicha', isPrimary: false, colorHex: kTeaTypeHojichaHex),
   TeaTypeSeed(name: kPuerName, isPrimary: false, colorHex: kTeaTypePuerHex),
   TeaTypeSeed(name: 'White', isPrimary: false, colorHex: kTeaTypeWhiteHex),
+  TeaTypeSeed(name: 'Jasmine', isPrimary: false, colorHex: kTeaTypeJasmineHex),
+  TeaTypeSeed(
+    name: 'Tieguanyin',
+    isPrimary: false,
+    colorHex: kTeaTypeTieguanyinHex,
+  ),
 ];
+
+/// Jasmine + Tieguanyin for catalogs that already have the original seven.
+const additiveSecondaryTeaTypeSeeds = <TeaTypeSeed>[
+  TeaTypeSeed(name: 'Jasmine', isPrimary: false, colorHex: kTeaTypeJasmineHex),
+  TeaTypeSeed(
+    name: 'Tieguanyin',
+    isPrimary: false,
+    colorHex: kTeaTypeTieguanyinHex,
+  ),
+];
+
+int teaTypeSeedIntensity(TeaTypeSeed seed) {
+  return seed.isPrimary ? kTeaTypePrimaryIntensity : kToppingDefaultIntensity;
+}
+
+bool isPrimaryTeaTypeName(String name) {
+  return kPrimaryTeaTypeNames
+      .map((n) => n.toLowerCase())
+      .contains(name.trim().toLowerCase());
+}
 
 class TeaTypeRow {
   const TeaTypeRow({
@@ -148,12 +183,19 @@ String? teaTypeCardLine({String? typeName, String? note}) {
   return '$name - $n';
 }
 
-/// Seed the seven names only when the catalog is empty.
+/// Empty catalog → all seeds. Existing catalog → Jasmine/Tieguanyin if missing.
 List<TeaTypeSeed> teaTypesToSeedForUser(Iterable<String> existingNames) {
-  if (existingNames.any((name) => name.trim().isNotEmpty)) {
-    return const [];
+  final have = {
+    for (final name in existingNames)
+      if (name.trim().isNotEmpty) teaTypeColorKey(name),
+  };
+  if (have.isEmpty) {
+    return List<TeaTypeSeed>.from(newUserTeaTypeSeeds);
   }
-  return List<TeaTypeSeed>.from(newUserTeaTypeSeeds);
+  return [
+    for (final seed in additiveSecondaryTeaTypeSeeds)
+      if (!have.contains(teaTypeColorKey(seed.name))) seed,
+  ];
 }
 
 List<TeaTypeRow> primaryTeaTypes(Iterable<TeaTypeRow> catalog) {

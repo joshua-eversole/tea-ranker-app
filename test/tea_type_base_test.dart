@@ -6,6 +6,7 @@ import 'package:tea_ranker/data/tea_types.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/friend_taste_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
+import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/theme/topping_colors.dart';
 import 'package:tea_ranker/widgets/base_toggles.dart';
 import 'package:tea_ranker/widgets/milk_fruit_icons.dart';
@@ -80,26 +81,55 @@ void main() {
   });
 
   group('tea type catalog', () {
-    test('seeds seven names only when empty; Pu’er uses U+2019', () {
-      expect(teaTypesToSeedForUser(const []), newUserTeaTypeSeeds);
-      expect(teaTypesToSeedForUser(['Black']), isEmpty);
-      expect(kPuerName, 'Pu’er');
-      expect(kPuerName.codeUnitAt(2), 0x2019);
-      expect(newUserTeaTypeSeeds.map((s) => s.name).toList(), [
-        'Black',
-        'Green',
-        'Oolong',
-        'Matcha',
-        'Hojicha',
-        kPuerName,
-        'White',
-      ]);
-      expect(newUserTeaTypeSeeds.where((s) => s.isPrimary).map((s) => s.name), [
-        'Black',
-        'Green',
-        'Oolong',
-      ]);
-    });
+    test(
+      'empty catalog gets nine seeds; existing seven get Jasmine + Tieguanyin',
+      () {
+        expect(teaTypesToSeedForUser(const []), newUserTeaTypeSeeds);
+        expect(newUserTeaTypeSeeds, hasLength(9));
+        expect(kPuerName, 'Pu’er');
+        expect(kPuerName.codeUnitAt(2), 0x2019);
+        expect(newUserTeaTypeSeeds.map((s) => s.name).toList(), [
+          'Black',
+          'Green',
+          'Oolong',
+          'Matcha',
+          'Hojicha',
+          kPuerName,
+          'White',
+          'Jasmine',
+          'Tieguanyin',
+        ]);
+        expect(
+          newUserTeaTypeSeeds.where((s) => s.isPrimary).map((s) => s.name),
+          ['Black', 'Green', 'Oolong'],
+        );
+        final seven = [
+          'Black',
+          'Green',
+          'Oolong',
+          'Matcha',
+          'Hojicha',
+          kPuerName,
+          'White',
+        ];
+        expect(teaTypesToSeedForUser(seven).map((s) => s.name), [
+          'Jasmine',
+          'Tieguanyin',
+        ]);
+        expect(
+          teaTypesToSeedForUser([
+            ...seven,
+            'Jasmine',
+            'Yellow',
+          ]).map((s) => s.name),
+          ['Tieguanyin'],
+        );
+        expect(
+          teaTypesToSeedForUser([...seven, 'Jasmine', 'Tieguanyin']),
+          isEmpty,
+        );
+      },
+    );
 
     test('Matcha is secondary, not under Green; extras follow seeds', () {
       final catalog = [
@@ -235,6 +265,8 @@ void main() {
     expect(namedColorHexForTeaType(kPuerName), kTeaTypePuerHex);
     expect(namedColorHexForTeaType("Pu'er"), kTeaTypePuerHex);
     expect(namedColorHexForTeaType('White'), kTeaTypeWhiteHex);
+    expect(namedColorHexForTeaType('Jasmine'), kTeaTypeJasmineHex);
+    expect(namedColorHexForTeaType('Tieguanyin'), kTeaTypeTieguanyinHex);
     expect(
       colorHexForNewTeaType('Yellow', existingHexes: const []),
       toppingBrightPaletteHex.first.toUpperCase(),
@@ -256,6 +288,28 @@ void main() {
       isUserAdded: false,
     );
     expect(effectiveTeaTypeColorHex(uncolored), kTeaTypeMatchaHex);
+  });
+
+  test('row 1 tiles use grade-wash pastel, not full-blast hex', () {
+    expect(kTeaTypePrimaryIntensity, (kGradeWashMix * 100).round());
+    const black = TeaTypeRow(
+      id: 'b',
+      name: 'Black',
+      userId: 'u',
+      isPrimary: true,
+      isUserAdded: false,
+      colorHex: kTeaTypeBlackHex,
+      colorIntensity: 100,
+    );
+    final pastel = teaTypeTileFill(black);
+    final blasted = toppingFill(colorHex: kTeaTypeBlackHex, intensity: 100);
+    final expected = toppingFill(
+      colorHex: kTeaTypeBlackHex,
+      intensity: kTeaTypePrimaryIntensity,
+    );
+    expect(pastel, expected);
+    expect(pastel, isNot(blasted));
+    expect(pastel, Color.lerp(AppColors.cream, blasted, kGradeWashMix));
   });
 
   testWidgets(
@@ -304,7 +358,7 @@ void main() {
       expect(find.text('Black'), findsOneWidget);
       expect(find.text('Green'), findsOneWidget);
       expect(find.text('Oolong'), findsOneWidget);
-      expect(find.byType(TeaLeafIcon), findsNWidgets(3));
+      expect(find.byType(TwoTeaLeavesIcon), findsNWidgets(3));
 
       final blackBox = tester.getRect(
         find.ancestor(of: find.text('Black'), matching: find.byType(InkWell)),
@@ -316,10 +370,12 @@ void main() {
       expect((blackBox.width - oolongBox.width).abs(), lessThan(2));
 
       expect(find.text('Matcha'), findsOneWidget);
+      expect(find.text('Jasmine'), findsOneWidget);
+      expect(find.text('Tieguanyin'), findsOneWidget);
       expect(find.text('Yellow'), findsOneWidget);
       expect(find.byType(ListView), findsOneWidget);
       expect(find.byType(Wrap), findsNothing);
-      expect(find.byType(ToppingChip), findsNWidgets(5));
+      expect(find.byType(ToppingChip), findsNWidgets(7));
       expect(
         tester.widget<ListView>(find.byType(ListView)).scrollDirection,
         Axis.horizontal,

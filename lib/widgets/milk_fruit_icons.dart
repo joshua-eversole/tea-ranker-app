@@ -127,9 +127,9 @@ class _CitrusPainter extends CustomPainter {
   }
 }
 
-/// Tea leaf, drawn in the same light wash as the Milk/Fruit icons.
-class TeaLeafIcon extends StatelessWidget {
-  const TeaLeafIcon({
+/// Two smaller leaflets, same light-wash treatment as Milk/Fruit/boba icons.
+class TwoTeaLeavesIcon extends StatelessWidget {
+  const TwoTeaLeavesIcon({
     super.key,
     required this.color,
     required this.size,
@@ -146,14 +146,17 @@ class TeaLeafIcon extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _TeaLeafPainter(color: color, pearlColor: pearlColor ?? color),
+        painter: _TwoTeaLeavesPainter(
+          color: color,
+          pearlColor: pearlColor ?? color,
+        ),
       ),
     );
   }
 }
 
-class _TeaLeafPainter extends CustomPainter {
-  _TeaLeafPainter({required this.color, required this.pearlColor});
+class _TwoTeaLeavesPainter extends CustomPainter {
+  _TwoTeaLeavesPainter({required this.color, required this.pearlColor});
 
   final Color color;
   final Color pearlColor;
@@ -169,25 +172,32 @@ class _TeaLeafPainter extends CustomPainter {
       ..color = pearlColor
       ..style = PaintingStyle.fill;
 
-    final leaf = Path()
-      ..moveTo(w * 0.50, h * 0.08)
-      ..quadraticBezierTo(w * 0.92, h * 0.32, w * 0.72, h * 0.86)
-      ..quadraticBezierTo(w * 0.50, h * 0.98, w * 0.28, h * 0.86)
-      ..quadraticBezierTo(w * 0.08, h * 0.32, w * 0.50, h * 0.08)
-      ..close();
-    canvas.drawPath(leaf, fill);
+    void leaf({required double cx, required double cy, required double lean}) {
+      canvas.save();
+      canvas.translate(cx, cy);
+      canvas.rotate(lean);
+      final path = Path()
+        ..moveTo(0, -h * 0.22)
+        ..quadraticBezierTo(w * 0.16, -h * 0.04, w * 0.10, h * 0.20)
+        ..quadraticBezierTo(0, h * 0.26, -w * 0.10, h * 0.20)
+        ..quadraticBezierTo(-w * 0.16, -h * 0.04, 0, -h * 0.22)
+        ..close();
+      canvas.drawPath(path, fill);
+      final vein = Path()
+        ..moveTo(0, -h * 0.14)
+        ..quadraticBezierTo(w * 0.03, h * 0.02, 0, h * 0.16)
+        ..quadraticBezierTo(-w * 0.03, h * 0.02, 0, -h * 0.14)
+        ..close();
+      canvas.drawPath(vein, inner);
+      canvas.restore();
+    }
 
-    final vein = Path()
-      ..moveTo(w * 0.50, h * 0.22)
-      ..quadraticBezierTo(w * 0.62, h * 0.48, w * 0.52, h * 0.82)
-      ..quadraticBezierTo(w * 0.50, h * 0.88, w * 0.48, h * 0.82)
-      ..quadraticBezierTo(w * 0.38, h * 0.48, w * 0.50, h * 0.22)
-      ..close();
-    canvas.drawPath(vein, inner);
+    leaf(cx: w * 0.36, cy: h * 0.52, lean: -0.45);
+    leaf(cx: w * 0.64, cy: h * 0.52, lean: 0.45);
   }
 
   @override
-  bool shouldRepaint(covariant _TeaLeafPainter oldDelegate) {
+  bool shouldRepaint(covariant _TwoTeaLeavesPainter oldDelegate) {
     return oldDelegate.color != color || oldDelegate.pearlColor != pearlColor;
   }
 }

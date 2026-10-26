@@ -141,7 +141,7 @@ class TeaRepository extends ChangeNotifier {
             'is_primary': seed.isPrimary,
             'is_user_added': false,
             'color_hex': seed.colorHex,
-            'color_intensity': kToppingDefaultIntensity,
+            'color_intensity': teaTypeSeedIntensity(seed),
           },
       ]);
     } catch (_) {
