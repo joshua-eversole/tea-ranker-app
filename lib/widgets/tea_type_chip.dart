@@ -10,9 +10,12 @@ import 'topping_chip.dart';
 import 'wash_choice_tile.dart';
 
 Color teaTypeTileFill(TeaTypeRow row) {
+  final intensity = isPrimaryTeaTypeName(row.name)
+      ? kTeaTypePrimaryIntensity
+      : row.colorIntensity;
   return toppingFill(
     colorHex: effectiveTeaTypeColorHex(row),
-    intensity: row.colorIntensity,
+    intensity: intensity,
   );
 }
 
@@ -76,7 +79,7 @@ class _PrimaryTypeTile extends StatelessWidget {
       fill: fill,
       labelColor: toppingLabelColor(fill),
       onTap: onTap,
-      icon: TeaLeafIcon(
+      icon: TwoTeaLeavesIcon(
         color: teaTypeLeafWash(type),
         pearlColor: fill,
         size: 36,

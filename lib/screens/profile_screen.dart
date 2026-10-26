@@ -13,7 +13,7 @@ import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
 /// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
-const kAppDisplayVersion = 'v. 0.24';
+const kAppDisplayVersion = 'v. 0.25';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -338,7 +338,7 @@ class _TeaTypeColorSettings extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Matcha, Hojicha, Pu’er, White, and extras. Tap a chip to change its fill. Black, Green, and Oolong stay the suggested tile colors.',
+              'Matcha, Hojicha, Pu’er, White, Jasmine, Tieguanyin, and extras. Tap a chip to change its fill. Black, Green, and Oolong stay the pastel tile colors.',
               style: TextStyle(color: AppColors.chocolate),
             ),
             const SizedBox(height: 12),
