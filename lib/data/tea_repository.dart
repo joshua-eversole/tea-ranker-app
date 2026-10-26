@@ -6,6 +6,7 @@ import '../theme/topping_colors.dart';
 import 'hangouts.dart';
 import 'models.dart';
 import 'shop_brands.dart';
+import 'tea_types.dart';
 import 'social.dart';
 import 'taste_stats.dart';
 
@@ -19,6 +20,7 @@ class TeaRepository extends ChangeNotifier {
   bool loading = false;
   ProfileRow? account;
   List<ToppingRow> toppings = const [];
+  List<TeaTypeRow> teaTypes = const [];
   List<ShopBrand> shopBrands = const [];
 
   String? get userId => _client.auth.currentUser?.id;
@@ -40,6 +42,7 @@ class TeaRepository extends ChangeNotifier {
   Future<void> _onSignedInBody() async {
     await ensureProfile();
     await seedToppingsIfMissing();
+    await seedTeaTypesIfMissing();
     await seedShopsIfMissing();
     await refresh();
   }
@@ -111,6 +114,77 @@ class TeaRepository extends ChangeNotifier {
         ]);
       }
     }
+  }
+
+  Future<void> seedTeaTypesIfMissing() async {
+    final uid = userId;
+    if (uid == null) return;
+    List rows;
+    try {
+      rows =
+          await _client.from('tea_types').select().eq('user_id', uid) as List;
+    } catch (_) {
+      return;
+    }
+    final existing = [
+      for (final e in rows)
+        TeaTypeRow.fromMap(Map<String, dynamic>.from(e as Map)),
+    ];
+    final toInsert = teaTypesToSeedForUser(existing.map((t) => t.name));
+    if (toInsert.isEmpty) return;
+    try {
+      await _client.from('tea_types').insert([
+        for (final seed in toInsert)
+          {
+            'user_id': uid,
+            'name': seed.name,
+            'is_primary': seed.isPrimary,
+            'is_user_added': false,
+          },
+      ]);
+    } catch (_) {}
+  }
+
+  Future<TeaTypeRow> matchOrCreateTeaType(String raw) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final name = raw.trim();
+    if (name.isEmpty) {
+      throw ArgumentError('Need a tea type name');
+    }
+    for (final t in teaTypes) {
+      if (t.name.toLowerCase() == name.toLowerCase()) return t;
+    }
+    Map<String, dynamic>? inserted;
+    try {
+      inserted = Map<String, dynamic>.from(
+        await _client
+                .from('tea_types')
+                .insert({
+                  'user_id': uid,
+                  'name': name,
+                  'is_primary': false,
+                  'is_user_added': true,
+                })
+                .select()
+                .single()
+            as Map,
+      );
+    } catch (_) {
+      final rows =
+          await _client.from('tea_types').select().eq('user_id', uid) as List;
+      for (final e in rows) {
+        final row = TeaTypeRow.fromMap(Map<String, dynamic>.from(e as Map));
+        if (row.name.toLowerCase() == name.toLowerCase()) return row;
+      }
+      rethrow;
+    }
+    final row = TeaTypeRow.fromMap(inserted);
+    teaTypes = [...teaTypes, row];
+    notifyListeners();
+    return row;
   }
 
   Future<void> seedShopsIfMissing() async {
@@ -188,6 +262,20 @@ class TeaRepository extends ChangeNotifier {
               (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
             );
 
+      try {
+        final typeRows = await _client
+            .from('tea_types')
+            .select()
+            .eq('user_id', uid);
+        teaTypes = [
+          for (final e in typeRows as List)
+            TeaTypeRow.fromMap(Map<String, dynamic>.from(e as Map)),
+        ];
+      } catch (_) {
+        teaTypes = const [];
+      }
+      final typeById = {for (final t in teaTypes) t.id: t};
+
       final shopById = {for (final s in shops) s.id: s};
       final toppingById = {for (final t in toppings) t.id: t};
       final toppingsByDrink = <String, List<ToppingRow>>{};
@@ -212,6 +300,7 @@ class TeaRepository extends ChangeNotifier {
           shop: shopById[row.shopId],
           toppings: toppingsByDrink[row.id] ?? row.toppings,
           companions: companionsByDrink[row.id] ?? const [],
+          teaType: row.teaType ?? typeById[row.teaTypeId],
         );
       }).toList()..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
 
@@ -351,6 +440,8 @@ class TeaRepository extends ChangeNotifier {
     required String drinkType,
     int? sugarLevel,
     int? iceLevel,
+    String? teaTypeId,
+    String? teaTypeNote,
     required List<ToppingRow> selectedToppings,
     required LetterGrade grade,
     required String? notes,
@@ -374,6 +465,8 @@ class TeaRepository extends ChangeNotifier {
         drinkType: drinkType,
         sugarLevel: sugarLevel,
         iceLevel: iceLevel,
+        teaTypeId: teaTypeId,
+        teaTypeNote: teaTypeNote,
         price: price,
         grade: grade,
         notes: notes,
@@ -389,7 +482,10 @@ class TeaRepository extends ChangeNotifier {
           .select()
           .single();
     } catch (_) {
-      insertPayload.remove('hangout_id');
+      insertPayload
+        ..remove('hangout_id')
+        ..remove('tea_type_id')
+        ..remove('tea_type_note');
       entry = await _client
           .from('drink_entries')
           .insert(insertPayload)
@@ -425,6 +521,8 @@ class TeaRepository extends ChangeNotifier {
     required String drinkType,
     int? sugarLevel,
     int? iceLevel,
+    String? teaTypeId,
+    String? teaTypeNote,
     required List<ToppingRow> selectedToppings,
     required LetterGrade grade,
     required String? notes,
@@ -449,6 +547,8 @@ class TeaRepository extends ChangeNotifier {
       drinkType: drinkType,
       sugarLevel: sugarLevel,
       iceLevel: iceLevel,
+      teaTypeId: teaTypeId,
+      teaTypeNote: teaTypeNote,
       price: price,
       grade: grade,
       notes: notes,
@@ -461,9 +561,12 @@ class TeaRepository extends ChangeNotifier {
           .eq('id', drinkId)
           .eq('user_id', uid);
     } catch (_) {
+      final slim = Map<String, dynamic>.from(payload)
+        ..remove('tea_type_id')
+        ..remove('tea_type_note');
       await _client
           .from('drink_entries')
-          .update(payload)
+          .update(slim)
           .eq('id', drinkId)
           .eq('user_id', uid);
     }
@@ -610,7 +713,7 @@ class TeaRepository extends ChangeNotifier {
   }
 
   static const _friendDrinkSelect =
-      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, hangout_id, shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
+      'id, user_id, shop_id, tea_name, drink_type, sugar_level, ice_level, price, grade, overall_grade, logged_at, hangout_id, tea_type_id, tea_type_note, tea_types(id, name, is_primary, is_user_added), shops(id, user_id, name, name_zh, is_user_added), drink_toppings(drink_id, topping_id, toppings(id, user_id, name, is_user_added, color_hex, color_intensity))';
 
   Future<Map<String, List<DrinkCompanionView>>> _companionsByDrink(
     List<String> drinkIds,
@@ -694,11 +797,24 @@ class TeaRepository extends ChangeNotifier {
     final companionsByDrink = await _companionsByDrink([
       for (final row in parsed) row.id,
     ]);
+    final typeById = <String, TeaTypeRow>{};
+    try {
+      final typeRows = await _client
+          .from('tea_types')
+          .select()
+          .eq('user_id', friendId);
+      for (final e in typeRows as List) {
+        final row = TeaTypeRow.fromMap(Map<String, dynamic>.from(e as Map));
+        typeById[row.id] = row;
+      }
+    } catch (_) {}
+
     return [
       for (final row in parsed)
         row.withRelations(
           shop: shopById[row.shopId] ?? row.shop,
           companions: companionsByDrink[row.id] ?? const [],
+          teaType: row.teaType ?? typeById[row.teaTypeId ?? ''],
         ),
     ];
   }
@@ -1145,6 +1261,7 @@ class TeaRepository extends ChangeNotifier {
     profile = null;
     account = null;
     toppings = const [];
+    teaTypes = const [];
     shopBrands = const [];
     notifyListeners();
   }
@@ -1157,6 +1274,8 @@ Map<String, dynamic> drinkEntryWritePayload({
   required String drinkType,
   int? sugarLevel,
   int? iceLevel,
+  String? teaTypeId,
+  String? teaTypeNote,
   required double price,
   required LetterGrade grade,
   required String? notes,
@@ -1170,6 +1289,12 @@ Map<String, dynamic> drinkEntryWritePayload({
     'drink_type': drinkType,
     'sugar_level': sugarLevel,
     'ice_level': iceLevel,
+    'tea_type_id': teaTypeId,
+    'tea_type_note': (teaTypeId == null)
+        ? null
+        : (teaTypeNote == null || teaTypeNote.trim().isEmpty)
+        ? null
+        : teaTypeNote.trim(),
     'price': price,
     'grade': grade.points,
     'overall_grade': grade.letter,

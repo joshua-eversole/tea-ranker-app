@@ -11,6 +11,7 @@ import '../widgets/grade_wash_surface.dart';
 import '../widgets/logo_color_picker.dart';
 import '../widgets/shop_logo_circle.dart';
 import '../widgets/shop_name_text.dart';
+import '../widgets/tea_type_chip.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/with_companions_line.dart';
 import 'home_screen.dart';
@@ -347,6 +348,7 @@ class DrinkVisitCard extends StatelessWidget {
                     drink.teaName,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                  TeaTypeVisitLine(drink: drink),
                   const SizedBox(height: 8),
                   DrinkVisitFacts(drink: drink),
                   if (drink.companions.isNotEmpty)
@@ -393,4 +395,3 @@ class DrinkVisitCard extends StatelessWidget {
     );
   }
 }
-

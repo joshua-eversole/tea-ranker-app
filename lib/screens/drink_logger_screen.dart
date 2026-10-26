@@ -7,11 +7,14 @@ import '../data/hangouts.dart';
 import '../data/models.dart';
 import '../data/social.dart';
 import '../data/tea_repository.dart';
+import '../data/tea_types.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
+import '../widgets/base_toggles.dart';
 import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
+import '../widgets/tea_type_chip.dart';
 import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 import '../widgets/with_companions_line.dart';
@@ -25,7 +28,6 @@ bool loggerCanSave({
   required String shop,
   required String tea,
   required String priceText,
-  required String? base,
   required LetterGrade? grade,
   required bool sugarFixed,
   required bool iceFixed,
@@ -40,7 +42,6 @@ bool loggerCanSave({
       tea.trim().isNotEmpty &&
       price != null &&
       price >= 0 &&
-      base != null &&
       grade != null &&
       sugarOk &&
       iceOk &&
@@ -71,9 +72,13 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   final _price = TextEditingController();
   final _notes = TextEditingController();
   final _newTopping = TextEditingController();
+  final _teaTypeNote = TextEditingController();
+  final _newTeaType = TextEditingController();
 
   DateTime _day = DateTime.now();
-  String? _base;
+  bool _milk = false;
+  bool _fruit = false;
+  String? _teaTypeId;
   late double _sugar;
   late double _ice;
   bool _sugarFixed = false;
@@ -155,7 +160,11 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
       entry.loggedAt.month,
       entry.loggedAt.day,
     );
-    _base = drinkBases.contains(entry.drinkType) ? entry.drinkType : null;
+    final toggles = togglesFromDrinkType(entry.drinkType);
+    _milk = toggles.milk;
+    _fruit = toggles.fruit;
+    _teaTypeId = entry.teaTypeId;
+    _teaTypeNote.text = entry.teaTypeNote ?? '';
     _sugarFixed = entry.sugarLevel == null;
     _iceFixed = entry.iceLevel == null;
     _sugar = snapPercent(entry.sugarLevel ?? 50).toDouble();
@@ -193,6 +202,8 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     _price.dispose();
     _notes.dispose();
     _newTopping.dispose();
+    _teaTypeNote.dispose();
+    _newTeaType.dispose();
     super.dispose();
   }
 
@@ -200,7 +211,6 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     shop: _shop.text,
     tea: _tea.text,
     priceText: _price.text,
-    base: _base,
     grade: _grade,
     sugarFixed: _sugarFixed,
     iceFixed: _iceFixed,
@@ -210,6 +220,23 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   );
 
   List<ToppingRow> get _catalog => widget.repo.toppings;
+
+  String get _drinkType => drinkTypeFromToggles(milk: _milk, fruit: _fruit);
+
+  List<TeaTypeRow> get _typeCatalog {
+    final live = widget.repo.teaTypes;
+    if (live.isNotEmpty) return live;
+    return [
+      for (final s in newUserTeaTypeSeeds)
+        TeaTypeRow(
+          id: 'seed:${s.name}',
+          name: s.name,
+          userId: null,
+          isPrimary: s.isPrimary,
+          isUserAdded: false,
+        ),
+    ];
+  }
 
   Future<void> _loadFriends() async {
     try {
@@ -299,6 +326,57 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     }
   }
 
+  Future<void> _toggleTeaType(TeaTypeRow t) async {
+    if (_teaTypeId == t.id) {
+      setState(() {
+        _teaTypeId = null;
+        _teaTypeNote.clear();
+      });
+      return;
+    }
+    var id = t.id;
+    if (id.startsWith('seed:')) {
+      try {
+        final row = await widget.repo.matchOrCreateTeaType(t.name);
+        id = row.id;
+      } catch (_) {
+        setState(
+          () => _banner =
+              'Couldn’t save that tea type. Paste supabase/tea_types.sql first.',
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() => _teaTypeId = id);
+  }
+
+  Future<void> _addTeaType() async {
+    final name = _newTeaType.text.trim();
+    if (name.isEmpty) return;
+    final needle = name.toLowerCase();
+    for (final t in _typeCatalog) {
+      if (t.name.trim().toLowerCase() == needle) {
+        await _toggleTeaType(t);
+        if (mounted) _newTeaType.clear();
+        return;
+      }
+    }
+    try {
+      final row = await widget.repo.matchOrCreateTeaType(name);
+      if (!mounted) return;
+      setState(() {
+        _teaTypeId = row.id;
+        _newTeaType.clear();
+      });
+    } catch (_) {
+      setState(
+        () => _banner =
+            'Couldn’t add that tea type. Paste supabase/tea_types.sql first.',
+      );
+    }
+  }
+
   Future<void> _save() async {
     if (!_canSave) return;
     setState(() {
@@ -316,9 +394,11 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           shopName: _shop.text,
           teaName: _tea.text,
           price: double.parse(_price.text.trim()),
-          drinkType: _base!,
+          drinkType: _drinkType,
           sugarLevel: _sugarFixed ? null : snapPercent(_sugar.round()),
           iceLevel: _iceFixed ? null : snapPercent(_ice.round()),
+          teaTypeId: _teaTypeId,
+          teaTypeNote: _teaTypeNote.text,
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
@@ -332,9 +412,11 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
           shopName: _shop.text,
           teaName: _tea.text,
           price: double.parse(_price.text.trim()),
-          drinkType: _base!,
+          drinkType: _drinkType,
           sugarLevel: _sugarFixed ? null : snapPercent(_sugar.round()),
           iceLevel: _iceFixed ? null : snapPercent(_ice.round()),
+          teaTypeId: _teaTypeId,
+          teaTypeNote: _teaTypeNote.text,
           selectedToppings: selectedRows,
           grade: _grade!,
           notes: _notes.text,
@@ -499,17 +581,96 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                   ),
                   const SizedBox(height: 12),
                   _Section(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        hint: const Text('Base'),
-                        value: _base,
-                        items: [
-                          for (final b in drinkBases)
-                            DropdownMenuItem(value: b, child: Text(b)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tea type',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final t in primaryTeaTypes(_typeCatalog))
+                              TeaTypeChip(
+                                label: t.name,
+                                large: true,
+                                selected: _teaTypeId == t.id,
+                                onTap: () => _toggleTeaType(t),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final t in secondaryTeaTypes(_typeCatalog))
+                              TeaTypeChip(
+                                label: t.name,
+                                selected: _teaTypeId == t.id,
+                                onTap: () => _toggleTeaType(t),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _newTeaType,
+                                decoration: const InputDecoration(
+                                  labelText: kAddTeaTypeLabel,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  filled: false,
+                                ),
+                                onSubmitted: (_) => _addTeaType(),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _addTeaType,
+                              child: const Text('Add'),
+                            ),
+                          ],
+                        ),
+                        if (_teaTypeId != null) ...[
+                          const SizedBox(height: 4),
+                          TextField(
+                            controller: _teaTypeNote,
+                            decoration: const InputDecoration(
+                              labelText: kTeaTypeNoteLabel,
+                              hintText: kTeaTypeNoteHint,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              filled: false,
+                            ),
+                          ),
                         ],
-                        onChanged: (v) => setState(() => _base = v),
-                      ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _Section(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Base',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        BaseToggles(
+                          milk: _milk,
+                          fruit: _fruit,
+                          onMilk: (v) => setState(() => _milk = v),
+                          onFruit: (v) => setState(() => _fruit = v),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
