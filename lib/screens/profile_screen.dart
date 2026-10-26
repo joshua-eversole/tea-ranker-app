@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/models.dart';
 import '../data/tea_repository.dart';
+import '../data/tea_types.dart';
 import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
 import '../widgets/percent_slider.dart';
@@ -12,7 +13,7 @@ import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
 /// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
-const kAppDisplayVersion = 'v. 0.23';
+const kAppDisplayVersion = 'v. 0.24';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -104,6 +105,13 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _ToppingColorSettings(repo: repo),
+              const SizedBox(height: 24),
+              Text(
+                'Tea type colors',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _TeaTypeColorSettings(repo: repo),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () async {
@@ -279,6 +287,75 @@ class _ToppingColorSettings extends StatelessWidget {
                 children: [
                   for (final t in toppings)
                     ToppingChip.fromRow(t, onTap: () => _edit(context, t)),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TeaTypeColorSettings extends StatelessWidget {
+  const _TeaTypeColorSettings({required this.repo});
+
+  final TeaRepository repo;
+
+  Future<void> _edit(BuildContext context, TeaTypeRow type) async {
+    final picked = await showToppingColorPicker(
+      context: context,
+      toppingName: type.name,
+      initialHex: normalizeColorHex(effectiveTeaTypeColorHex(type)),
+      initialIntensity: snapIntensity(type.colorIntensity),
+    );
+    if (picked == null) return;
+    try {
+      await repo.updateTeaTypeColor(
+        teaTypeId: type.id,
+        colorHex: picked.colorHex,
+        colorIntensity: picked.intensity,
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Couldn’t save that color. Paste supabase/tea_types_color_hex.sql in the Supabase SQL editor.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final types = secondaryTeaTypes(repo.teaTypes);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Matcha, Hojicha, Pu’er, White, and extras. Tap a chip to change its fill. Black, Green, and Oolong stay the suggested tile colors.',
+              style: TextStyle(color: AppColors.chocolate),
+            ),
+            const SizedBox(height: 12),
+            if (types.isEmpty)
+              const Text('No extra types yet. Add one when you log a drink.')
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final t in types)
+                    ToppingChip(
+                      label: t.name,
+                      colorHex: effectiveTeaTypeColorHex(t),
+                      intensity: t.colorIntensity,
+                      onTap: () => _edit(context, t),
+                    ),
                 ],
               ),
           ],

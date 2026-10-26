@@ -126,3 +126,68 @@ class _CitrusPainter extends CustomPainter {
     return oldDelegate.color != color || oldDelegate.pearlColor != pearlColor;
   }
 }
+
+/// Tea leaf, drawn in the same light wash as the Milk/Fruit icons.
+class TeaLeafIcon extends StatelessWidget {
+  const TeaLeafIcon({
+    super.key,
+    required this.color,
+    required this.size,
+    this.pearlColor,
+  });
+
+  final Color color;
+  final Color? pearlColor;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _TeaLeafPainter(color: color, pearlColor: pearlColor ?? color),
+      ),
+    );
+  }
+}
+
+class _TeaLeafPainter extends CustomPainter {
+  _TeaLeafPainter({required this.color, required this.pearlColor});
+
+  final Color color;
+  final Color pearlColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final inner = Paint()
+      ..color = pearlColor
+      ..style = PaintingStyle.fill;
+
+    final leaf = Path()
+      ..moveTo(w * 0.50, h * 0.08)
+      ..quadraticBezierTo(w * 0.92, h * 0.32, w * 0.72, h * 0.86)
+      ..quadraticBezierTo(w * 0.50, h * 0.98, w * 0.28, h * 0.86)
+      ..quadraticBezierTo(w * 0.08, h * 0.32, w * 0.50, h * 0.08)
+      ..close();
+    canvas.drawPath(leaf, fill);
+
+    final vein = Path()
+      ..moveTo(w * 0.50, h * 0.22)
+      ..quadraticBezierTo(w * 0.62, h * 0.48, w * 0.52, h * 0.82)
+      ..quadraticBezierTo(w * 0.50, h * 0.88, w * 0.48, h * 0.82)
+      ..quadraticBezierTo(w * 0.38, h * 0.48, w * 0.50, h * 0.22)
+      ..close();
+    canvas.drawPath(vein, inner);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TeaLeafPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.pearlColor != pearlColor;
+  }
+}

@@ -4,6 +4,7 @@ import '../data/shop_brands.dart';
 import '../data/tea_types.dart';
 import '../theme/tokens.dart';
 import 'milk_fruit_icons.dart';
+import 'wash_choice_tile.dart';
 
 /// Cream/white Milk tile fill.
 final kMilkToggleFill = Color.lerp(
@@ -51,7 +52,7 @@ class BaseToggles extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _BaseToggle(
+          child: WashChoiceTile(
             label: kMilkToggleLabel,
             selected: milk,
             fill: kMilkToggleFill,
@@ -65,7 +66,7 @@ class BaseToggles extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: _BaseToggle(
+          child: WashChoiceTile(
             label: kFruitToggleLabel,
             selected: fruit,
             fill: kFruitToggleFill,
@@ -78,60 +79,6 @@ class BaseToggles extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _BaseToggle extends StatelessWidget {
-  const _BaseToggle({
-    required this.label,
-    required this.selected,
-    required this.fill,
-    required this.onTap,
-    required this.icon,
-  });
-
-  final String label;
-  final bool selected;
-  final Color fill;
-  final VoidCallback onTap;
-  final Widget icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: fill,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: selected ? AppColors.boba : AppColors.seed,
-          width: selected ? 3 : 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppLayout.minTap),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    color: AppColors.boba,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

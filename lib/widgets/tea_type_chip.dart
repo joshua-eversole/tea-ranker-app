@@ -1,53 +1,122 @@
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../data/shop_brands.dart';
+import '../data/tea_types.dart';
 import '../theme/tokens.dart';
+import '../theme/topping_colors.dart';
+import 'milk_fruit_icons.dart';
+import 'topping_chip.dart';
+import 'wash_choice_tile.dart';
 
-class TeaTypeChip extends StatelessWidget {
-  const TeaTypeChip({
+Color teaTypeTileFill(TeaTypeRow row) {
+  return toppingFill(
+    colorHex: effectiveTeaTypeColorHex(row),
+    intensity: row.colorIntensity,
+  );
+}
+
+Color teaTypeLeafWash(TeaTypeRow row) {
+  return Color.lerp(
+    AppColors.cream,
+    colorFromHex(effectiveTeaTypeColorHex(row)),
+    kHomeLogoCircleWashMix,
+  )!;
+}
+
+/// Row 1: Black / Green / Oolong as three Milk/Fruit-style tiles with a leaf.
+class TeaTypePrimaryRow extends StatelessWidget {
+  const TeaTypePrimaryRow({
     super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.large = false,
+    required this.types,
+    required this.selectedId,
+    required this.onToggle,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool large;
+  final List<TeaTypeRow> types;
+  final String? selectedId;
+  final ValueChanged<TeaTypeRow> onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final fill = selected ? AppColors.boba : AppColors.seed;
-    final onFill = selected ? Colors.white : AppColors.boba;
-    return Material(
-      color: fill,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppLayout.minTap,
-            minWidth: AppLayout.minTap,
-          ),
-          child: Padding(
-            padding: large
-                ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
-                : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: onFill,
-                  fontWeight: FontWeight.w600,
-                  fontSize: large ? 16 : 13,
-                ),
-              ),
+    return Row(
+      children: [
+        for (var i = 0; i < types.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: _PrimaryTypeTile(
+              type: types[i],
+              selected: selectedId == types[i].id,
+              onTap: () => onToggle(types[i]),
             ),
           ),
-        ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PrimaryTypeTile extends StatelessWidget {
+  const _PrimaryTypeTile({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TeaTypeRow type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = teaTypeTileFill(type);
+    return WashChoiceTile(
+      label: type.name,
+      selected: selected,
+      fill: fill,
+      labelColor: toppingLabelColor(fill),
+      onTap: onTap,
+      icon: TeaLeafIcon(
+        color: teaTypeLeafWash(type),
+        pearlColor: fill,
+        size: 36,
+      ),
+    );
+  }
+}
+
+/// Row 2: topping-sized chips, horizontal scroll, no wrap, no icons.
+class TeaTypeSecondaryScroller extends StatelessWidget {
+  const TeaTypeSecondaryScroller({
+    super.key,
+    required this.types,
+    required this.selectedId,
+    required this.onToggle,
+  });
+
+  final List<TeaTypeRow> types;
+  final String? selectedId;
+  final ValueChanged<TeaTypeRow> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    if (types.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: AppLayout.minTap,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: types.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final t = types[index];
+          return ToppingChip(
+            label: t.name,
+            colorHex: effectiveTeaTypeColorHex(t),
+            intensity: t.colorIntensity,
+            selected: selectedId == t.id,
+            onTap: () => onToggle(t),
+          );
+        },
       ),
     );
   }
