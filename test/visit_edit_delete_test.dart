@@ -7,6 +7,8 @@ import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/drink_logger_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
 import 'package:tea_ranker/theme/tokens.dart';
+import 'package:tea_ranker/widgets/drink_visit_overview.dart';
+import 'package:tea_ranker/widgets/new_catalog_dialogs.dart';
 
 DrinkEntryRow sampleDrink({int? sugarLevel = 30, int? iceLevel = 50}) =>
     DrinkEntryRow(
@@ -145,14 +147,14 @@ void main() {
     );
   });
 
-  testWidgets('visit card overflow offers Edit and Delete', (tester) async {
+  testWidgets('visit card has no overflow; tap opens overview', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: DrinkVisitCard(
             drink: sampleDrink(),
             onEdit: () {},
-            onDelete: () {},
+            onDelete: () async {},
           ),
         ),
       ),
@@ -160,10 +162,12 @@ void main() {
     expect(find.text('Wintermelon Milk'), findsOneWidget);
     expect(find.text('30%'), findsOneWidget);
     expect(find.text('50%'), findsOneWidget);
-    await tester.tap(find.byTooltip('Edit or delete this visit'));
+    expect(find.byIcon(Icons.more_vert), findsNothing);
+    await tester.tap(find.text('Wintermelon Milk'));
     await tester.pumpAndSettle();
-    expect(find.text('Edit'), findsOneWidget);
-    expect(find.text('Delete'), findsOneWidget);
+    expect(find.byTooltip(kVisitEditTooltip), findsOneWidget);
+    expect(find.byTooltip(kVisitDeleteTooltip), findsOneWidget);
+    expect(find.text('light'), findsOneWidget);
   });
 
   testWidgets('delete confirm copy; Cancel does nothing', (tester) async {
@@ -229,7 +233,7 @@ void main() {
           body: DrinkVisitCard(
             drink: sampleDrink(sugarLevel: null, iceLevel: 50),
             onEdit: () {},
-            onDelete: () {},
+            onDelete: () async {},
           ),
         ),
       ),
@@ -275,5 +279,108 @@ void main() {
     expect(text.style?.fontSize, 13);
     await tester.tap(find.text('Ask for less ice'));
     expect(tapped, isTrue);
+  });
+
+  testWidgets('long-press visit row edits; swipe left confirms delete', (
+    tester,
+  ) async {
+    var edited = false;
+    var deleted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DrinkVisitCard(
+            drink: sampleDrink(),
+            onEdit: () => edited = true,
+            onDelete: () async => deleted = true,
+          ),
+        ),
+      ),
+    );
+    await tester.longPress(find.text('Wintermelon Milk'));
+    await tester.pumpAndSettle();
+    expect(edited, isTrue);
+    expect(find.byType(DrinkVisitOverview), findsNothing);
+
+    await tester.drag(find.byType(Dismissible), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text(kDeleteVisitConfirmMessage), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(deleted, isFalse);
+
+    await tester.drag(find.byType(Dismissible), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(deleted, isTrue);
+  });
+
+  testWidgets('overview Edit and Delete icons', (tester) async {
+    var edited = false;
+    var deleted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DrinkVisitCard(
+            drink: sampleDrink(),
+            onEdit: () => edited = true,
+            onDelete: () async => deleted = true,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Wintermelon Milk'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(kVisitEditTooltip));
+    await tester.pumpAndSettle();
+    expect(edited, isTrue);
+
+    await tester.tap(find.text('Wintermelon Milk'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(kVisitDeleteTooltip));
+    await tester.pumpAndSettle();
+    expect(find.text(kDeleteVisitConfirmMessage), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(deleted, isTrue);
+  });
+
+  testWidgets('New Topping dialog includes palette and intensity', (
+    tester,
+  ) async {
+    NewToppingDraft? draft;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () async {
+                  draft = await showNewToppingDialog(
+                    context: context,
+                    existingHexes: const [],
+                  );
+                },
+                child: const Text('open'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text(kNewToppingTitle), findsOneWidget);
+    expect(find.text('Bright defaults'), findsOneWidget);
+    expect(find.text('Intensity'), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Lychee');
+    await tester.pump();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(draft?.name, 'Lychee');
+    expect(draft?.colorHex, isNotEmpty);
+    expect(draft?.intensity, 100);
   });
 }

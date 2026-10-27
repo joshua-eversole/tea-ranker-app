@@ -10,13 +10,12 @@ import '../data/tea_repository.dart';
 import '../data/tea_types.dart';
 import '../grading/grade.dart';
 import '../theme/tokens.dart';
-import '../theme/topping_colors.dart';
 import '../widgets/base_toggles.dart';
 import '../widgets/percent_slider.dart';
 import '../widgets/shop_name_field.dart';
+import '../widgets/new_catalog_dialogs.dart';
 import '../widgets/tea_type_chip.dart';
 import '../widgets/topping_chip.dart';
-import '../widgets/topping_color_picker.dart';
 import '../widgets/with_companions_line.dart';
 
 String drinkLoggerTitle({required bool editing}) =>
@@ -71,9 +70,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   final _tea = TextEditingController();
   final _price = TextEditingController();
   final _notes = TextEditingController();
-  final _newTopping = TextEditingController();
   final _teaTypeNote = TextEditingController();
-  final _newTeaType = TextEditingController();
 
   DateTime _day = DateTime.now();
   bool _milk = false;
@@ -201,9 +198,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
     _tea.dispose();
     _price.dispose();
     _notes.dispose();
-    _newTopping.dispose();
     _teaTypeNote.dispose();
-    _newTeaType.dispose();
     super.dispose();
   }
 
@@ -289,39 +284,26 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   }
 
   Future<void> _addTopping() async {
-    final name = _newTopping.text.trim();
-    if (name.isEmpty) return;
-    final needle = name.toLowerCase();
+    final draft = await showNewToppingDialog(
+      context: context,
+      existingHexes: _catalog.map((t) => t.colorHex),
+    );
+    if (draft == null || !mounted) return;
+    final needle = draft.name.toLowerCase();
     for (final t in _catalog) {
       if (t.name.trim().toLowerCase() == needle) {
-        setState(() {
-          _selected.add(t.id);
-          _newTopping.clear();
-        });
+        setState(() => _selected.add(t.id));
         return;
       }
     }
-    if (!mounted) return;
-    final picked = await showToppingColorPicker(
-      context: context,
-      toppingName: name,
-      initialHex: colorHexForNewTopping(
-        name,
-        existingHexes: _catalog.map((t) => t.colorHex),
-      ),
-      confirmLabel: 'Add',
-    );
-    if (picked == null || !mounted) return;
     try {
       final row = await widget.repo.matchOrCreateTopping(
-        name,
-        colorHex: picked.colorHex,
-        colorIntensity: picked.intensity,
+        draft.name,
+        colorHex: draft.colorHex,
+        colorIntensity: draft.intensity,
       );
-      setState(() {
-        _selected.add(row.id);
-        _newTopping.clear();
-      });
+      if (!mounted) return;
+      setState(() => _selected.add(row.id));
     } catch (e) {
       setState(() => _banner = 'Couldn’t add that topping.');
     }
@@ -329,10 +311,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
 
   Future<void> _toggleTeaType(TeaTypeRow t) async {
     if (_teaTypeId == t.id) {
-      setState(() {
-        _teaTypeId = null;
-        _teaTypeNote.clear();
-      });
+      setState(() => _teaTypeId = null);
       return;
     }
     var id = t.id;
@@ -353,38 +332,25 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
   }
 
   Future<void> _addTeaType() async {
-    final name = _newTeaType.text.trim();
-    if (name.isEmpty) return;
+    final name = await showNewTeaTypeDialog(context: context);
+    if (name == null || !mounted) return;
     final needle = name.toLowerCase();
     for (final t in _typeCatalog) {
       if (t.name.trim().toLowerCase() == needle) {
-        await _toggleTeaType(t);
-        if (mounted) _newTeaType.clear();
+        if (_teaTypeId != t.id) await _toggleTeaType(t);
         return;
       }
     }
-    if (!mounted) return;
-    final picked = await showToppingColorPicker(
-      context: context,
-      toppingName: name,
-      initialHex: colorHexForNewTeaType(
-        name,
-        existingHexes: _typeCatalog.map(effectiveTeaTypeColorHex),
-      ),
-      confirmLabel: 'Add',
-    );
-    if (picked == null || !mounted) return;
     try {
       final row = await widget.repo.matchOrCreateTeaType(
         name,
-        colorHex: picked.colorHex,
-        colorIntensity: picked.intensity,
+        colorHex: colorHexForNewTeaType(
+          name,
+          existingHexes: _typeCatalog.map(effectiveTeaTypeColorHex),
+        ),
       );
       if (!mounted) return;
-      setState(() {
-        _teaTypeId = row.id;
-        _newTeaType.clear();
-      });
+      setState(() => _teaTypeId = row.id);
     } catch (_) {
       setState(
         () => _banner =
@@ -615,43 +581,10 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                           types: secondaryTeaTypes(_typeCatalog),
                           selectedId: _teaTypeId,
                           onToggle: _toggleTeaType,
+                          onAddNew: _addTeaType,
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _newTeaType,
-                                decoration: const InputDecoration(
-                                  labelText: kAddTeaTypeLabel,
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  filled: false,
-                                ),
-                                onSubmitted: (_) => _addTeaType(),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _addTeaType,
-                              child: const Text('Add'),
-                            ),
-                          ],
-                        ),
-                        if (_teaTypeId != null) ...[
-                          const SizedBox(height: 4),
-                          TextField(
-                            controller: _teaTypeNote,
-                            decoration: const InputDecoration(
-                              labelText: kTeaTypeNoteLabel,
-                              hintText: kTeaTypeNoteHint,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                            ),
-                          ),
-                        ],
+                        const SizedBox(height: 4),
+                        TeaTypeNoteField(controller: _teaTypeNote),
                       ],
                     ),
                   ),
@@ -738,28 +671,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                                   });
                                 },
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _newTopping,
-                                decoration: const InputDecoration(
-                                  labelText: 'Add topping',
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  filled: false,
-                                ),
-                                onSubmitted: (_) => _addTopping(),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _addTopping,
-                              child: const Text('Add'),
-                            ),
+                            ToppingChip.addNew(onTap: _addTopping),
                           ],
                         ),
                       ],

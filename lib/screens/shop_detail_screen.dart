@@ -6,6 +6,7 @@ import '../data/shop_brands.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/drink_visit_facts.dart';
+import '../widgets/drink_visit_overview.dart';
 import '../widgets/grade_circle.dart';
 import '../widgets/grade_wash_surface.dart';
 import '../widgets/logo_color_picker.dart';
@@ -156,8 +157,6 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
   }
 
   Future<void> _deleteVisit(DrinkEntryRow drink) async {
-    final ok = await confirmDeleteVisit(context);
-    if (!ok || !mounted) return;
     try {
       await widget.repo.deleteDrink(drink.id);
     } catch (_) {
@@ -165,6 +164,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Couldn’t delete that visit.')),
       );
+      rethrow;
     }
   }
 
@@ -323,73 +323,90 @@ class DrinkVisitCard extends StatelessWidget {
 
   final DrinkEntryRow drink;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
+
+  Future<bool> _confirmAndDelete(BuildContext context) async {
+    final ok = await confirmDeleteVisit(context);
+    if (!ok) return false;
+    try {
+      await onDelete();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final letter = drink.letter?.letter ?? '—';
-    return GradeWashSurface(
-      mark: drink.letter?.letter,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 4, 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (drink.letter != null)
-              GradeCircle(mark: letter, size: AppLayout.historyGradeSize)
-            else
-              const GradeOrDash(band: null, size: AppLayout.historyGradeSize),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    drink.teaName,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  TeaTypeVisitLine(drink: drink),
-                  const SizedBox(height: 8),
-                  DrinkVisitFacts(drink: drink),
-                  if (drink.companions.isNotEmpty)
-                    WithCompanionsLine(
-                      companions: drink.companions,
-                      onTapLinked: (c) => context.push(
-                        '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
-                      ),
+    return Dismissible(
+      key: ValueKey('visit-${drink.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) => _confirmAndDelete(context),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: AppColors.gradeD,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      child: GradeWashSurface(
+        mark: drink.letter?.letter,
+        onTap: () {
+          showDrinkVisitOverview(
+            context: context,
+            drink: drink,
+            onEdit: onEdit,
+            onDelete: () => _confirmAndDelete(context),
+          );
+        },
+        onLongPress: onEdit,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (drink.letter != null)
+                GradeCircle(mark: letter, size: AppLayout.historyGradeSize)
+              else
+                const GradeOrDash(band: null, size: AppLayout.historyGradeSize),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      drink.teaName,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  if (drink.toppings.isNotEmpty) ...[
+                    TeaTypeVisitLine(drink: drink),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final t in drink.toppings)
-                          ToppingChip.fromRow(t, compact: true),
-                      ],
-                    ),
+                    DrinkVisitFacts(drink: drink),
+                    if (drink.companions.isNotEmpty)
+                      WithCompanionsLine(
+                        companions: drink.companions,
+                        onTapLinked: (c) => context.push(
+                          '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
+                        ),
+                      ),
+                    if (drink.toppings.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final t in drink.toppings)
+                            ToppingChip.fromRow(t, compact: true),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            SizedBox(
-              width: AppLayout.minTap,
-              height: AppLayout.minTap,
-              child: PopupMenuButton<String>(
-                tooltip: 'Edit or delete this visit',
-                padding: EdgeInsets.zero,
-                onSelected: (value) {
-                  if (value == 'edit') onEdit();
-                  if (value == 'delete') onDelete();
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-                icon: const Icon(Icons.more_vert),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

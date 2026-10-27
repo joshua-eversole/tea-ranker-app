@@ -95,31 +95,39 @@ class TeaTypeSecondaryScroller extends StatelessWidget {
     required this.types,
     required this.selectedId,
     required this.onToggle,
+    this.onAddNew,
   });
 
   final List<TeaTypeRow> types;
   final String? selectedId;
   final ValueChanged<TeaTypeRow> onToggle;
+  final VoidCallback? onAddNew;
 
   @override
   Widget build(BuildContext context) {
-    if (types.isEmpty) return const SizedBox.shrink();
+    if (types.isEmpty && onAddNew == null) return const SizedBox.shrink();
     return SizedBox(
       height: AppLayout.minTap,
-      child: ListView.separated(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        itemCount: types.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final t = types[index];
-          return ToppingChip(
-            label: t.name,
-            colorHex: effectiveTeaTypeColorHex(t),
-            intensity: t.colorIntensity,
-            selected: selectedId == t.id,
-            onTap: () => onToggle(t),
-          );
-        },
+        child: Row(
+          children: [
+            for (var i = 0; i < types.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              ToppingChip(
+                label: types[i].name,
+                colorHex: effectiveTeaTypeColorHex(types[i]),
+                intensity: types[i].colorIntensity,
+                selected: selectedId == types[i].id,
+                onTap: () => onToggle(types[i]),
+              ),
+            ],
+            if (onAddNew != null) ...[
+              if (types.isNotEmpty) const SizedBox(width: 8),
+              ToppingChip.addNew(onTap: onAddNew),
+            ],
+          ],
+        ),
       ),
     );
   }

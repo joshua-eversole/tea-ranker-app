@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../theme/tokens.dart';
 import '../theme/topping_colors.dart';
+import 'new_catalog_dialogs.dart';
 
 class ToppingChip extends StatelessWidget {
   const ToppingChip({
@@ -26,6 +27,16 @@ class ToppingChip extends StatelessWidget {
       colorHex: topping.colorHex,
       intensity: topping.colorIntensity,
       selected: selected,
+      compact: compact,
+      onTap: onTap,
+    );
+  }
+
+  factory ToppingChip.addNew({VoidCallback? onTap, bool compact = false}) {
+    return ToppingChip(
+      label: kAddNewChipLabel,
+      colorHex: kAddNewChipHex,
+      intensity: kToppingDefaultIntensity,
       compact: compact,
       onTap: onTap,
     );

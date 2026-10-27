@@ -156,7 +156,7 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
               runSpacing: 8,
               children: [
                 for (final hex in toppingBrightPaletteHex)
-                  _Swatch(
+                  PaletteColorSwatch(
                     hex: hex,
                     selected: hexFromColor(_color) == hex.toUpperCase(),
                     onTap: () => _setColor(colorFromHex(hex)),
@@ -253,8 +253,9 @@ class _ToppingColorPickerState extends State<ToppingColorPicker> {
   }
 }
 
-class _Swatch extends StatelessWidget {
-  const _Swatch({
+class PaletteColorSwatch extends StatelessWidget {
+  const PaletteColorSwatch({
+    super.key,
     required this.hex,
     required this.selected,
     required this.onTap,

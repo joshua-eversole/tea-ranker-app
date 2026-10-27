@@ -13,7 +13,7 @@ import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
 /// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
-const kAppDisplayVersion = 'v. 0.25';
+const kAppDisplayVersion = 'v. 0.26';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -190,8 +190,7 @@ class _DefaultSlidersState extends State<_DefaultSliders> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error =
-              'Couldn’t save defaults. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.';
+          _error = 'Couldn’t save defaults. Paste supabase/zh_only_shops_and_profile_defaults.sql in the Supabase SQL editor.';
         });
       }
     }
