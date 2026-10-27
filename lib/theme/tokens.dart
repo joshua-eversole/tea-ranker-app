@@ -48,6 +48,9 @@ abstract final class AppLayout {
   static const addSlotOverhang = 12.0;
   static const barContentHeight = addSlotSize - addSlotOverhang; // 52
   static const historyGradeSize = 48.0;
+
+  /// ~50% larger than history cards, for the drink overview sheet.
+  static const overviewGradeSize = 72.0;
   static const shopHeaderGradeSize = 64.0;
   static const minTap = 44.0;
 }
@@ -163,7 +166,10 @@ ThemeData buildTeaTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.cream,
-      labelStyle: const TextStyle(color: AppColors.chocolate, fontFamily: family),
+      labelStyle: const TextStyle(
+        color: AppColors.chocolate,
+        fontFamily: family,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: AppColors.seed),

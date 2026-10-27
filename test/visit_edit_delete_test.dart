@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:tea_ranker/data/models.dart';
 import 'package:tea_ranker/data/shop_brands.dart';
 import 'package:tea_ranker/data/tea_repository.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/screens/drink_logger_screen.dart';
 import 'package:tea_ranker/screens/shop_detail_screen.dart';
+import 'package:tea_ranker/data/tea_types.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/widgets/drink_visit_overview.dart';
+import 'package:tea_ranker/widgets/grade_circle.dart';
 import 'package:tea_ranker/widgets/new_catalog_dialogs.dart';
+import 'package:tea_ranker/widgets/topping_chip.dart';
 
 DrinkEntryRow sampleDrink({int? sugarLevel = 30, int? iceLevel = 50}) =>
     DrinkEntryRow(
@@ -382,5 +386,86 @@ void main() {
     expect(draft?.name, 'Lychee');
     expect(draft?.colorHex, isNotEmpty);
     expect(draft?.intensity, 100);
+  });
+
+  test('overview headline is bold drink @ shop; base is Milk/Fruit/Tea', () {
+    expect(
+      drinkOverviewHeadline(sampleDrink()),
+      'Wintermelon Milk @ 50 Lan / 五十嵐',
+    );
+    expect(drinkTypeShortLabel('Milk-based'), 'Milk');
+    expect(drinkTypeShortLabel('Fruit-based'), 'Fruit');
+    expect(drinkTypeShortLabel('Tea-based'), 'Tea');
+    expect(AppLayout.overviewGradeSize, AppLayout.historyGradeSize * 1.5);
+  });
+
+  testWidgets(
+    'overview layout: date by grade, price, base, top-right actions',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DrinkVisitOverview(
+              drink: sampleDrink(),
+              onEdit: () {},
+              onDelete: () async {},
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('Wintermelon Milk'), findsOneWidget);
+      expect(find.textContaining('@ 50 Lan / 五十嵐'), findsOneWidget);
+      expect(find.text(formatTwd(65)), findsOneWidget);
+      expect(find.text('Milk'), findsOneWidget);
+      expect(find.text('Milk-based'), findsNothing);
+      expect(find.text('Boba'), findsOneWidget);
+
+      final grade = tester.widget<GradeCircle>(find.byType(GradeCircle));
+      expect(grade.size, AppLayout.overviewGradeSize);
+
+      final gradeBox = tester.getRect(find.byType(GradeCircle));
+      final dateLabel = DateFormat.yMMMd().format(DateTime(2026, 4, 8, 12));
+      final dateBox = tester.getRect(find.text(dateLabel));
+      expect(dateBox.left, greaterThan(gradeBox.right));
+      expect(dateBox.top, greaterThan(gradeBox.top));
+
+      final sugarBox = tester.getRect(find.text('30%'));
+      expect(sugarBox.top, greaterThan(dateBox.bottom - 4));
+
+      final editBox = tester.getRect(find.byTooltip(kVisitEditTooltip));
+      final deleteBox = tester.getRect(find.byTooltip(kVisitDeleteTooltip));
+      expect(editBox.top, lessThan(gradeBox.top + 8));
+      expect(deleteBox.left, greaterThan(editBox.left));
+      expect(deleteBox.right, greaterThan(editBox.right - 1));
+      expect(deleteBox.center.dy, closeTo(editBox.center.dy, 6));
+
+      final topping = tester.widget<ToppingChip>(find.byType(ToppingChip));
+      expect(topping.compact, isFalse);
+    },
+  );
+
+  testWidgets('swipe delete red is clipped to the rounded card', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DrinkVisitCard(
+            drink: sampleDrink(),
+            onEdit: () {},
+            onDelete: () async {},
+          ),
+        ),
+      ),
+    );
+    final clip = tester.widget<ClipRRect>(
+      find.ancestor(
+        of: find.byType(Dismissible),
+        matching: find.byType(ClipRRect),
+      ),
+    );
+    expect(clip.borderRadius, BorderRadius.circular(AppRadii.card));
+    expect(clip.clipBehavior, Clip.antiAlias);
+    expect(find.byType(ColoredBox), findsWidgets);
   });
 }

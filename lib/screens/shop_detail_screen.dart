@@ -339,73 +339,81 @@ class DrinkVisitCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final letter = drink.letter?.letter ?? '—';
-    return Dismissible(
-      key: ValueKey('visit-${drink.id}'),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _confirmAndDelete(context),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      clipBehavior: Clip.antiAlias,
+      child: Dismissible(
+        key: ValueKey('visit-${drink.id}'),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (_) => _confirmAndDelete(context),
+        background: const ColoredBox(
           color: AppColors.gradeD,
-          borderRadius: BorderRadius.circular(AppRadii.card),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: EdgeInsets.only(right: 20),
+              child: Icon(Icons.delete_outline, color: Colors.white),
+            ),
+          ),
         ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: GradeWashSurface(
-        mark: drink.letter?.letter,
-        onTap: () {
-          showDrinkVisitOverview(
-            context: context,
-            drink: drink,
-            onEdit: onEdit,
-            onDelete: () => _confirmAndDelete(context),
-          );
-        },
-        onLongPress: onEdit,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (drink.letter != null)
-                GradeCircle(mark: letter, size: AppLayout.historyGradeSize)
-              else
-                const GradeOrDash(band: null, size: AppLayout.historyGradeSize),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      drink.teaName,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    TeaTypeVisitLine(drink: drink),
-                    const SizedBox(height: 8),
-                    DrinkVisitFacts(drink: drink),
-                    if (drink.companions.isNotEmpty)
-                      WithCompanionsLine(
-                        companions: drink.companions,
-                        onTapLinked: (c) => context.push(
-                          '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
-                        ),
+        child: GradeWashSurface(
+          mark: drink.letter?.letter,
+          onTap: () {
+            showDrinkVisitOverview(
+              context: context,
+              drink: drink,
+              onEdit: onEdit,
+              onDelete: () => _confirmAndDelete(context),
+            );
+          },
+          onLongPress: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (drink.letter != null)
+                  GradeCircle(mark: letter, size: AppLayout.historyGradeSize)
+                else
+                  const GradeOrDash(
+                    band: null,
+                    size: AppLayout.historyGradeSize,
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        drink.teaName,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    if (drink.toppings.isNotEmpty) ...[
+                      TeaTypeVisitLine(drink: drink),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final t in drink.toppings)
-                            ToppingChip.fromRow(t, compact: true),
-                        ],
-                      ),
+                      DrinkVisitFacts(drink: drink),
+                      if (drink.companions.isNotEmpty)
+                        WithCompanionsLine(
+                          companions: drink.companions,
+                          onTapLinked: (c) => context.push(
+                            '/social/friends/${c.userId}/drinks/${c.peerDrinkId}',
+                          ),
+                        ),
+                      if (drink.toppings.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final t in drink.toppings)
+                              ToppingChip.fromRow(t, compact: true),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

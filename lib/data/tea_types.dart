@@ -13,6 +13,7 @@ const drinkTypeWrites = <String>[
 
 const kMilkToggleLabel = 'Milk';
 const kFruitToggleLabel = 'Fruit';
+const kTeaToggleLabel = 'Tea';
 const kTeaTypeNoteLabel = 'Note';
 const kTeaTypeNoteHint = 'Assam, Jasmine';
 const kAddTeaTypeLabel = 'Add type';
@@ -173,6 +174,13 @@ String drinkTypeFromToggles({required bool milk, required bool fruit}) {
     milk: drinkType == kDrinkTypeMilk,
     fruit: drinkType == kDrinkTypeFruit,
   );
+}
+
+/// Overview / cards: Milk, Fruit, or Tea from the stored `drink_type`.
+String drinkTypeShortLabel(String? drinkType) {
+  if (drinkType == kDrinkTypeMilk) return kMilkToggleLabel;
+  if (drinkType == kDrinkTypeFruit) return kFruitToggleLabel;
+  return kTeaToggleLabel;
 }
 
 /// `{Type}` or `{Type} - {note}`. Null when no type.
