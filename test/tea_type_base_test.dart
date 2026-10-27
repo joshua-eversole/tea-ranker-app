@@ -404,6 +404,10 @@ void main() {
       );
       final addDeco = addFill.decoration! as ShapeDecoration;
       expect(addDeco.color, colorFromHex('#FFFFFF'));
+      final addShape = addDeco.shape as StadiumBorder;
+      expect(addShape.side.color, AppColors.boba);
+      final addLabel = tester.widget<Text>(find.text('Add new +'));
+      expect(addLabel.style?.fontWeight, FontWeight.w700);
     },
   );
 

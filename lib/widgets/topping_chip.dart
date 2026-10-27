@@ -13,6 +13,7 @@ class ToppingChip extends StatelessWidget {
     this.intensity,
     this.selected = false,
     this.compact = false,
+    this.addNew = false,
     this.onTap,
   });
 
@@ -38,6 +39,7 @@ class ToppingChip extends StatelessWidget {
       colorHex: kAddNewChipHex,
       intensity: kToppingDefaultIntensity,
       compact: compact,
+      addNew: true,
       onTap: onTap,
     );
   }
@@ -47,36 +49,43 @@ class ToppingChip extends StatelessWidget {
   final int? intensity;
   final bool selected;
   final bool compact;
+  final bool addNew;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final fill = toppingFill(colorHex: colorHex, intensity: intensity);
-    final onFill = toppingLabelColor(fill);
+    final onFill = addNew ? AppColors.boba : toppingLabelColor(fill);
     final pad = compact
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 4)
         : const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
     final textStyle = TextStyle(
       color: onFill,
       fontSize: compact ? 12 : 14,
-      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+      fontWeight: addNew
+          ? FontWeight.w700
+          : (selected ? FontWeight.w600 : FontWeight.w400),
     );
+    final BorderSide side;
+    if (addNew) {
+      side = const BorderSide(color: AppColors.boba, width: 1.5);
+    } else if (selected) {
+      side = BorderSide(color: onFill, width: 2);
+    } else {
+      side = BorderSide(color: fill.withValues(alpha: 0.01));
+    }
 
     final pill = AnimatedContainer(
       duration: const Duration(milliseconds: 120),
       padding: pad,
       decoration: ShapeDecoration(
         color: fill,
-        shape: StadiumBorder(
-          side: selected
-              ? BorderSide(color: onFill, width: 2)
-              : BorderSide(color: fill.withValues(alpha: 0.01)),
-        ),
+        shape: StadiumBorder(side: side),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (selected) ...[
+          if (selected && !addNew) ...[
             Icon(Icons.check, size: compact ? 14 : 16, color: onFill),
             const SizedBox(width: 4),
           ],
