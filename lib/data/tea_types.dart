@@ -16,6 +16,7 @@ const kFruitToggleLabel = 'Fruit';
 const kTeaTypeNoteLabel = 'Note';
 const kTeaTypeNoteHint = 'Assam, Jasmine';
 const kAddTeaTypeLabel = 'Add type';
+const kTeaTypeExtraDefaultHex = kToppingFallbackHex;
 
 /// Unicode apostrophe as in the spec (Pu’er).
 const kPuerName = 'Pu’er';
@@ -153,11 +154,11 @@ String? namedColorHexForTeaType(String name) {
   return namedTeaTypeColorHex[teaTypeColorKey(name)];
 }
 
-/// Stored hex, else the named seed, else null (caller picks a palette color).
+/// Stored hex, else the named seed, else cream/seed (recolor on Profile).
 String? effectiveTeaTypeColorHex(TeaTypeRow row) {
   final stored = row.colorHex?.trim();
   if (stored != null && stored.isNotEmpty) return stored;
-  return namedColorHexForTeaType(row.name);
+  return namedColorHexForTeaType(row.name) ?? kTeaTypeExtraDefaultHex;
 }
 
 /// Milk wins if both; fruit only → Fruit-based; neither → Tea-based.
@@ -234,5 +235,7 @@ String colorHexForNewTeaType(
 }) {
   final named = namedColorHexForTeaType(name);
   if (named != null) return named;
-  return nextBrightPaletteHex(existingHexes);
+  // Keep the signature; extras share seed/cream instead of cycling the palette.
+  existingHexes;
+  return kTeaTypeExtraDefaultHex;
 }

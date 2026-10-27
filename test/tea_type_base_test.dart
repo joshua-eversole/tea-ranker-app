@@ -10,6 +10,7 @@ import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/theme/topping_colors.dart';
 import 'package:tea_ranker/widgets/base_toggles.dart';
 import 'package:tea_ranker/widgets/milk_fruit_icons.dart';
+import 'package:tea_ranker/widgets/new_catalog_dialogs.dart';
 import 'package:tea_ranker/widgets/tea_type_chip.dart';
 import 'package:tea_ranker/widgets/topping_chip.dart';
 
@@ -195,7 +196,7 @@ void main() {
           body: DrinkVisitCard(
             drink: typedDrink(note: 'Assam'),
             onEdit: () {},
-            onDelete: () {},
+            onDelete: () async {},
           ),
         ),
       ),
@@ -269,8 +270,9 @@ void main() {
     expect(namedColorHexForTeaType('Tieguanyin'), kTeaTypeTieguanyinHex);
     expect(
       colorHexForNewTeaType('Yellow', existingHexes: const []),
-      toppingBrightPaletteHex.first.toUpperCase(),
+      kTeaTypeExtraDefaultHex,
     );
+    expect(kTeaTypeExtraDefaultHex, kToppingFallbackHex);
     const stored = TeaTypeRow(
       id: '1',
       name: 'Matcha',
@@ -348,6 +350,7 @@ void main() {
                   types: secondaryTeaTypes(catalog),
                   selectedId: null,
                   onToggle: (_) {},
+                  onAddNew: () {},
                 ),
               ],
             ),
@@ -373,11 +376,14 @@ void main() {
       expect(find.text('Jasmine'), findsOneWidget);
       expect(find.text('Tieguanyin'), findsOneWidget);
       expect(find.text('Yellow'), findsOneWidget);
-      expect(find.byType(ListView), findsOneWidget);
+      expect(find.text('Add new +'), findsOneWidget);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
       expect(find.byType(Wrap), findsNothing);
-      expect(find.byType(ToppingChip), findsNWidgets(7));
+      expect(find.byType(ToppingChip), findsNWidgets(8));
       expect(
-        tester.widget<ListView>(find.byType(ListView)).scrollDirection,
+        tester
+            .widget<SingleChildScrollView>(find.byType(SingleChildScrollView))
+            .scrollDirection,
         Axis.horizontal,
       );
 
@@ -389,6 +395,64 @@ void main() {
       );
       final matchaDeco = matchaFill.decoration! as ShapeDecoration;
       expect(matchaDeco.color, colorFromHex(kTeaTypeMatchaHex));
+
+      final addFill = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.widgetWithText(ToppingChip, 'Add new +'),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      final addDeco = addFill.decoration! as ShapeDecoration;
+      expect(addDeco.color, colorFromHex('#FFFFFF'));
     },
   );
+
+  testWidgets('variety note stays visible before a type is picked', (
+    tester,
+  ) async {
+    final note = TextEditingController();
+    addTearDown(note.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: TeaTypeNoteField(controller: note)),
+      ),
+    );
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.decoration?.hintText, kTeaTypeNoteHint);
+    expect(field.decoration?.labelText, kTeaTypeNoteLabel);
+    expect(find.byIcon(Icons.edit), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+  });
+
+  testWidgets('New Tea Type dialog Add / Cancel; Add returns the name', (
+    tester,
+  ) async {
+    String? added;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () async {
+                  added = await showNewTeaTypeDialog(context: context);
+                },
+                child: const Text('open'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text(kNewTeaTypeTitle), findsOneWidget);
+    expect(find.text('Add'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '  Yellow  ');
+    await tester.pump();
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    expect(added, 'Yellow');
+  });
 }

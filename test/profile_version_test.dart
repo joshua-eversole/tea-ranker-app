@@ -4,8 +4,8 @@ import 'package:tea_ranker/screens/profile_screen.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 
 void main() {
-  test('display version is v. 0.25', () {
-    expect(kAppDisplayVersion, 'v. 0.25');
+  test('display version is v. 0.26', () {
+    expect(kAppDisplayVersion, 'v. 0.26');
   });
 
   testWidgets('Profile header shows a quiet version at the top right', (
@@ -29,7 +29,7 @@ void main() {
       ),
     );
     expect(find.text(kAppDisplayVersion), findsOneWidget);
-    expect(find.text('v. 0.24'), findsNothing);
+    expect(find.text('v. 0.25'), findsNothing);
     final text = tester.widget<Text>(find.text(kAppDisplayVersion));
     final style = text.style!;
     expect(style.fontSize, 12);
