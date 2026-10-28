@@ -179,4 +179,28 @@ void main() {
     expect(kDeclineInviteLabel, 'Decline');
     expect(kHangoutSheetDoneLabel, 'Done');
   });
+
+  testWidgets('With names stay on one row when they fit', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: const Scaffold(
+          backgroundColor: AppColors.cream,
+          body: WithCompanionsLine(
+            companions: [
+              DrinkCompanionView(userId: 'a', username: 'maya'),
+              DrinkCompanionView(userId: 'b', username: 'ken'),
+            ],
+          ),
+        ),
+      ),
+    );
+    final withBox = tester.getRect(find.text('With '));
+    final mayaBox = tester.getRect(find.text('maya'));
+    final kenBox = tester.getRect(find.text('ken'));
+    expect(mayaBox.left, greaterThan(withBox.right - 2));
+    expect(kenBox.left, greaterThan(mayaBox.right));
+    expect(mayaBox.center.dy, closeTo(withBox.center.dy, 8));
+    expect(kenBox.center.dy, closeTo(mayaBox.center.dy, 8));
+  });
 }

@@ -183,13 +183,21 @@ String drinkTypeShortLabel(String? drinkType) {
   return kTeaToggleLabel;
 }
 
-/// `{Type}` or `{Type} - {note}`. Null when no type.
+bool teaTypeNameAlreadyEndsWithTea(String name) {
+  final lower = name.trim().toLowerCase();
+  return lower == 'tea' || lower.endsWith(' tea');
+}
+
+/// `with {Type} Tea` or `with {Type} Tea - {note}`. Null when no type.
+/// Does not double “Tea” if [typeName] already ends with Tea.
 String? teaTypeCardLine({String? typeName, String? note}) {
   final name = typeName?.trim();
   if (name == null || name.isEmpty) return null;
+  final labeled = teaTypeNameAlreadyEndsWithTea(name) ? name : '$name Tea';
+  final withType = 'with $labeled';
   final n = note?.trim();
-  if (n == null || n.isEmpty) return name;
-  return '$name - $n';
+  if (n == null || n.isEmpty) return withType;
+  return '$withType - $n';
 }
 
 /// Empty catalog → all seeds. Existing catalog → Jasmine/Tieguanyin if missing.

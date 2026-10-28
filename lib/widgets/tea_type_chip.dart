@@ -133,7 +133,7 @@ class TeaTypeSecondaryScroller extends StatelessWidget {
   }
 }
 
-/// Same `{Type}` / `{Type} - {note}` line on shop visits, friend’s last 3, hangout drink.
+/// Same `with {Type} Tea` / `with {Type} Tea - {note}` line on shop visits, friend’s last 3, hangout drink.
 class TeaTypeVisitLine extends StatelessWidget {
   const TeaTypeVisitLine({super.key, required this.drink});
 

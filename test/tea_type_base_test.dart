@@ -69,15 +69,18 @@ void main() {
 
   group('teaTypeCardLine', () {
     test('type only, type plus note, and empty', () {
-      expect(teaTypeCardLine(typeName: 'Black'), 'Black');
+      expect(teaTypeCardLine(typeName: 'Black'), 'with Black Tea');
       expect(
         teaTypeCardLine(typeName: 'Black', note: 'Assam'),
-        'Black - Assam',
+        'with Black Tea - Assam',
       );
-      expect(teaTypeCardLine(typeName: 'Black', note: '  '), 'Black');
+      expect(teaTypeCardLine(typeName: 'Oolong'), 'with Oolong Tea');
+      expect(teaTypeCardLine(typeName: 'Herbal Tea'), 'with Herbal Tea');
+      expect(teaTypeCardLine(typeName: 'Tea'), 'with Tea');
+      expect(teaTypeCardLine(typeName: 'Black', note: '  '), 'with Black Tea');
       expect(teaTypeCardLine(typeName: null, note: 'Assam'), isNull);
-      expect(typedDrink(note: 'Assam').teaTypeLine, 'Black - Assam');
-      expect(typedDrink().teaTypeLine, 'Black');
+      expect(typedDrink(note: 'Assam').teaTypeLine, 'with Black Tea - Assam');
+      expect(typedDrink().teaTypeLine, 'with Black Tea');
     });
   });
 
@@ -189,7 +192,9 @@ void main() {
     expect(withType['tea_type_note'], 'Assam');
   });
 
-  testWidgets('visit cards show {Type} or {Type} - {note}', (tester) async {
+  testWidgets('visit cards show with {Type} Tea or with {Type} Tea - {note}', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -202,15 +207,15 @@ void main() {
       ),
     );
     expect(find.text('Assam milk tea'), findsOneWidget);
-    expect(find.text('Black - Assam'), findsOneWidget);
+    expect(find.text('with Black Tea - Assam'), findsOneWidget);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(body: FriendDrinkCard(drink: typedDrink())),
       ),
     );
-    expect(find.text('Black'), findsOneWidget);
-    expect(find.text('Black - Assam'), findsNothing);
+    expect(find.text('with Black Tea'), findsOneWidget);
+    expect(find.text('with Black Tea - Assam'), findsNothing);
   });
 
   testWidgets('Milk and Fruit toggles are half-width and independent', (
