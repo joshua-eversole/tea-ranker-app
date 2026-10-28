@@ -26,6 +26,8 @@ class WithCompanionsLine extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 0,
+        runSpacing: 4,
         children: [
           const Text(
             'With ',
@@ -73,6 +75,8 @@ class _Name extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: AppLayout.minTap),
         child: Align(
           alignment: Alignment.centerLeft,
+          widthFactor: 1,
+          heightFactor: 1,
           child: Text(companion.username, style: style),
         ),
       ),

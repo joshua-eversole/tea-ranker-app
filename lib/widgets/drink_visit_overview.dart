@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../data/models.dart';
-import '../data/tea_types.dart';
 import '../theme/tokens.dart';
 import 'drink_visit_facts.dart';
 import 'grade_circle.dart';
@@ -174,25 +173,12 @@ class DrinkVisitOverview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            DrinkVisitFacts(drink: drink, showDate: false, spacious: true),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 28,
-              runSpacing: 12,
-              children: [
-                DrinkIconFact(
-                  icon: Icons.payments_outlined,
-                  text: formatTwd(drink.price),
-                  iconSize: 22,
-                  spacious: true,
-                ),
-                DrinkIconFact(
-                  icon: Icons.local_cafe_outlined,
-                  text: drinkTypeShortLabel(drink.drinkType),
-                  iconSize: 22,
-                  spacious: true,
-                ),
-              ],
+            DrinkVisitFacts(
+              drink: drink,
+              showDate: false,
+              spacious: true,
+              includePriceAndBase: true,
+              singleRow: true,
             ),
             if (drink.companions.isNotEmpty)
               WithCompanionsLine(

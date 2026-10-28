@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../data/models.dart';
+import '../data/tea_types.dart';
 import '../theme/tokens.dart';
 
 /// Sugar %, ice %, date. Omits a % when that level is Fixed (null).
@@ -11,44 +12,70 @@ class DrinkVisitFacts extends StatelessWidget {
     required this.drink,
     this.showDate = true,
     this.spacious = false,
+    this.includePriceAndBase = false,
+    this.singleRow = false,
   });
 
   final DrinkEntryRow drink;
   final bool showDate;
   final bool spacious;
+  final bool includePriceAndBase;
+  final bool singleRow;
 
   @override
   Widget build(BuildContext context) {
     final date = DateFormat.yMMMd().format(drink.loggedAt);
     final iconSize = spacious ? 22.0 : 16.0;
-    final gap = spacious ? 28.0 : 12.0;
-    return Wrap(
-      spacing: gap,
-      runSpacing: spacious ? 12 : 6,
-      children: [
-        if (drink.sugarLevel != null)
-          DrinkIconFact(
-            icon: Icons.water_drop_outlined,
-            text: '${drink.sugarLevel}%',
-            iconSize: iconSize,
-            spacious: spacious,
-          ),
-        if (drink.iceLevel != null)
-          DrinkIconFact(
-            icon: Icons.ac_unit,
-            text: '${drink.iceLevel}%',
-            iconSize: iconSize,
-            spacious: spacious,
-          ),
-        if (showDate)
-          DrinkIconFact(
-            icon: Icons.calendar_today_outlined,
-            text: date,
-            iconSize: iconSize,
-            spacious: spacious,
-          ),
-      ],
-    );
+    final gap = spacious ? 16.0 : 12.0;
+    final facts = <Widget>[
+      if (drink.sugarLevel != null)
+        DrinkIconFact(
+          icon: Icons.water_drop_outlined,
+          text: '${drink.sugarLevel}%',
+          iconSize: iconSize,
+          spacious: spacious,
+        ),
+      if (drink.iceLevel != null)
+        DrinkIconFact(
+          icon: Icons.ac_unit,
+          text: '${drink.iceLevel}%',
+          iconSize: iconSize,
+          spacious: spacious,
+        ),
+      if (showDate)
+        DrinkIconFact(
+          icon: Icons.calendar_today_outlined,
+          text: date,
+          iconSize: iconSize,
+          spacious: spacious,
+        ),
+      if (includePriceAndBase)
+        DrinkIconFact(
+          icon: Icons.payments_outlined,
+          text: formatTwd(drink.price),
+          iconSize: iconSize,
+          spacious: spacious,
+        ),
+      if (includePriceAndBase)
+        DrinkIconFact(
+          icon: Icons.local_cafe_outlined,
+          text: drinkTypeShortLabel(drink.drinkType),
+          iconSize: iconSize,
+          spacious: spacious,
+        ),
+    ];
+    if (facts.isEmpty) return const SizedBox.shrink();
+    if (singleRow) {
+      return Row(
+        children: [
+          for (var i = 0; i < facts.length; i++) ...[
+            if (i > 0) SizedBox(width: gap),
+            Flexible(child: facts[i]),
+          ],
+        ],
+      );
+    }
+    return Wrap(spacing: gap, runSpacing: spacious ? 12 : 6, children: facts);
   }
 }
 

@@ -231,7 +231,7 @@ class DrinkEntryRow {
     return LetterGrade.fromOverall(overallGrade);
   }
 
-  /// `{Type}` or `{Type} - {note}`. Null when no type is set.
+  /// `with {Type} Tea` or `with {Type} Tea - {note}`. Null when no type is set.
   String? get teaTypeLine =>
       teaTypeCardLine(typeName: teaType?.name, note: teaTypeNote);
 

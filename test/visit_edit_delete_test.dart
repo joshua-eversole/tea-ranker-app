@@ -431,6 +431,12 @@ void main() {
 
       final sugarBox = tester.getRect(find.text('30%'));
       expect(sugarBox.top, greaterThan(dateBox.bottom - 4));
+      final iceBox = tester.getRect(find.text('50%'));
+      final priceBox = tester.getRect(find.text(formatTwd(65)));
+      final baseBox = tester.getRect(find.text('Milk'));
+      expect(iceBox.center.dy, closeTo(sugarBox.center.dy, 6));
+      expect(priceBox.center.dy, closeTo(sugarBox.center.dy, 6));
+      expect(baseBox.center.dy, closeTo(sugarBox.center.dy, 6));
 
       final editBox = tester.getRect(find.byTooltip(kVisitEditTooltip));
       final deleteBox = tester.getRect(find.byTooltip(kVisitDeleteTooltip));
