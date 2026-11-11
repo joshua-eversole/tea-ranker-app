@@ -523,6 +523,7 @@ class _DrinkLoggerScreenState extends State<DrinkLoggerScreen> {
                       controller: _shop,
                       shops: shops,
                       onChanged: () => setState(() {}),
+                      searchOtherShops: widget.repo.searchOtherUsersShops,
                     ),
                   ),
                   const SizedBox(height: 12),

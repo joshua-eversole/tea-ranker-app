@@ -100,6 +100,10 @@ Paste [`supabase/zh_only_shops_and_profile_defaults.sql`](supabase/zh_only_shops
 
 The earlier [`supabase/shops_name_zh_and_notes.sql`](supabase/shops_name_zh_and_notes.sql) snippet is still safe if you already ran it (`IF NOT EXISTS`).
 
+## Shared shop names SQL (Supabase)
+
+Paste [`supabase/shops_select_authenticated.sql`](supabase/shops_select_authenticated.sql) in the SQL editor (project owner) so the logger can suggest shop names **created by another user** when your catalog has no match. Additive **SELECT** for signed-in users on `shops`; insert/update/delete stay owner-only. The app attaches to the existing row instead of inserting a duplicate name. Does not add a uniqueness rule, does not use `service_role`, and does not wipe Joshua’s log.
+
 ## Topping chip colors SQL (Supabase)
 
 Paste [`supabase/toppings_color_hex.sql`](supabase/toppings_color_hex.sql) in the SQL editor (project owner). Additive `toppings.color_hex` (`#RRGGBB`), owner-only RLS unchanged, no `service_role`. Sets fills for Joshua’s 11 names and the new-user seed names when those rows exist; does not delete catalog rows. Custom colors already stored are left alone on re-run.

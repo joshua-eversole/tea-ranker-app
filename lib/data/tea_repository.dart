@@ -6,6 +6,7 @@ import '../theme/topping_colors.dart';
 import 'hangouts.dart';
 import 'models.dart';
 import 'shop_brands.dart';
+import 'shop_search.dart';
 import 'tea_types.dart';
 import 'social.dart';
 import 'taste_stats.dart';
@@ -323,7 +324,16 @@ class TeaRepository extends ChangeNotifier {
       }
       final typeById = {for (final t in teaTypes) t.id: t};
 
+      final entryList = List<dynamic>.from(entryRows as List);
       final shopById = {for (final s in shops) s.id: s};
+      for (final raw in entryList) {
+        final map = Map<String, dynamic>.from(raw as Map);
+        final rawShop = map['shops'];
+        if (rawShop is Map) {
+          final embedded = ShopRow.fromMap(Map<String, dynamic>.from(rawShop));
+          shopById.putIfAbsent(embedded.id, () => embedded);
+        }
+      }
       final toppingById = {for (final t in toppings) t.id: t};
       final toppingsByDrink = <String, List<ToppingRow>>{};
       for (final raw in joinRows as List) {
@@ -334,8 +344,6 @@ class TeaRepository extends ChangeNotifier {
         if (topping == null) continue;
         toppingsByDrink.putIfAbsent(drinkId, () => []).add(topping);
       }
-
-      final entryList = List<dynamic>.from(entryRows as List);
       final companionsByDrink = await _companionsByDrink([
         for (final e in entryList)
           Map<String, dynamic>.from(e as Map)['id'] as String,
@@ -344,7 +352,7 @@ class TeaRepository extends ChangeNotifier {
       final entries = entryList.map((e) {
         final row = DrinkEntryRow.fromMap(Map<String, dynamic>.from(e as Map));
         return row.withRelations(
-          shop: shopById[row.shopId],
+          shop: shopById[row.shopId] ?? row.shop,
           toppings: toppingsByDrink[row.id] ?? row.toppings,
           companions: companionsByDrink[row.id] ?? const [],
           teaType: row.teaType ?? typeById[row.teaTypeId],
@@ -357,7 +365,13 @@ class TeaRepository extends ChangeNotifier {
 
       await _loadShopBrands();
 
-      profile = buildTasteProfile(entries, shops);
+      profile = buildTasteProfile(
+        entries,
+        mergeShopsForLog(
+          shops,
+          entries.map((e) => e.shop),
+        ),
+      );
       loading = false;
       notifyListeners();
     } catch (e) {
@@ -381,15 +395,19 @@ class TeaRepository extends ChangeNotifier {
     return null;
   }
 
+  /// Shop columns the logger needs to attach a drink. No notes.
+  static const _shopDirectorySelect =
+      'id, user_id, name, name_zh, is_user_added';
+
   Future<ShopRow> matchOrCreateShop(String rawName) async {
     final uid = userId;
     if (uid == null) {
       throw StateError('Not signed in');
     }
-    final shops = profile?.shops ?? const <ShopRow>[];
-    for (final shop in shops) {
-      if (shop.matchesNeedle(rawName)) return shop;
-    }
+    final own = existingShopForName(profile?.shops ?? const <ShopRow>[], rawName);
+    if (own != null) return own;
+    final existing = await findExistingShopByName(rawName);
+    if (existing != null) return existing;
     final columns = shopCreateColumns(rawName);
     if (trimToNull(columns['name'] as String?) == null &&
         trimToNull(columns['name_zh'] as String?) == null) {
@@ -403,20 +421,103 @@ class TeaRepository extends ChangeNotifier {
           .single();
       return ShopRow.fromMap(inserted);
     } catch (e) {
+      final attached = await findExistingShopByName(rawName);
+      if (attached != null) return attached;
+      if (looksLikeUniqueViolation(e)) rethrow;
       // English-only fallback if `name_zh` is not migrated yet. Never invent
       // a dummy English name for a Chinese-only shop.
       if (columns['name'] == null) rethrow;
-      final inserted = await _client
-          .from('shops')
-          .insert({
-            'user_id': uid,
-            'name': columns['name'],
-            'is_user_added': true,
-          })
-          .select()
-          .single();
-      return ShopRow.fromMap(inserted);
+      try {
+        final inserted = await _client
+            .from('shops')
+            .insert({
+              'user_id': uid,
+              'name': columns['name'],
+              'is_user_added': true,
+            })
+            .select()
+            .single();
+        return ShopRow.fromMap(inserted);
+      } catch (retry) {
+        final again = await findExistingShopByName(rawName);
+        if (again != null) return again;
+        rethrow;
+      }
     }
+  }
+
+  /// Case-insensitive exact match on `name` or `name_zh` among shops the
+  /// signed-in user can SELECT (own + others after shops_select_authenticated).
+  Future<ShopRow?> findExistingShopByName(String rawName) async {
+    final inMemory = existingShopForName(
+      profile?.shops ?? const <ShopRow>[],
+      rawName,
+    );
+    if (inMemory != null) return inMemory;
+    final columns = shopCreateColumns(rawName);
+    final name = trimToNull(columns['name'] as String?);
+    final nameZh = trimToNull(columns['name_zh'] as String?);
+    if (name != null) {
+      final hit = await _shopByIlike('name', name);
+      if (hit != null) return hit;
+    }
+    if (nameZh != null) {
+      try {
+        final hit = await _shopByIlike('name_zh', nameZh);
+        if (hit != null) return hit;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<ShopRow?> _shopByIlike(String column, String value) async {
+    final row = await _client
+        .from('shops')
+        .select(_shopDirectorySelect)
+        .ilike(column, value)
+        .limit(1)
+        .maybeSingle();
+    if (row == null) return null;
+    return ShopRow.fromMap(Map<String, dynamic>.from(row));
+  }
+
+  /// Other users’ shops whose name contains [rawQuery]. Empty query → none.
+  Future<List<ShopRow>> searchOtherUsersShops(String rawQuery) async {
+    final uid = userId;
+    final q = rawQuery.trim();
+    if (uid == null || q.isEmpty) return const [];
+    final pattern = '%${_escapeIlike(q)}%';
+    Future<List<ShopRow>> byColumn(String column) async {
+      final rows = await _client
+          .from('shops')
+          .select(_shopDirectorySelect)
+          .neq('user_id', uid)
+          .ilike(column, pattern)
+          .limit(8);
+      return [
+        for (final e in rows as List)
+          ShopRow.fromMap(Map<String, dynamic>.from(e as Map)),
+      ];
+    }
+
+    final byName = await byColumn('name');
+    var byZh = const <ShopRow>[];
+    try {
+      byZh = await byColumn('name_zh');
+    } catch (_) {}
+    final seen = <String>{};
+    final out = <ShopRow>[];
+    for (final shop in [...byName, ...byZh]) {
+      if (seen.add(shop.id)) out.add(shop);
+    }
+    return out;
+  }
+
+  String _escapeIlike(String raw) {
+    return raw
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
   }
 
   Future<ToppingRow> matchOrCreateTopping(
