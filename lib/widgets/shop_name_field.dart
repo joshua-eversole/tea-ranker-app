@@ -1,57 +1,105 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../data/shop_search.dart';
 import '../theme/tokens.dart';
 
-bool _nameStarts(String name, String q) => name.startsWith(q);
-bool _nameContains(String name, String q) => name.contains(q);
-
-/// Prefix matches first, then substring. Exact current text is omitted.
-/// Matches English `name` and Chinese `name_zh`.
-List<ShopRow> matchingShops(List<ShopRow> shops, String query, {int limit = 8}) {
-  final q = query.trim().toLowerCase();
-  if (q.isEmpty) return const [];
-  final starts = <ShopRow>[];
-  final contains = <ShopRow>[];
-  for (final shop in shops) {
-    final name = (shop.englishName ?? '').toLowerCase();
-    final zh = (shop.chineseName ?? '').toLowerCase();
-    if (shop.matchesNeedle(q)) continue;
-    if ((name.isNotEmpty && _nameStarts(name, q)) ||
-        (zh.isNotEmpty && _nameStarts(zh, q))) {
-      starts.add(shop);
-    } else if ((name.isNotEmpty && _nameContains(name, q)) ||
-        (zh.isNotEmpty && _nameContains(zh, q))) {
-      contains.add(shop);
-    }
-  }
-  return [...starts, ...contains].take(limit).toList();
-}
+export '../data/shop_search.dart';
 
 /// One-column shop picker: text field plus a matching list (not overlay chips).
-class ShopNameField extends StatelessWidget {
+class ShopNameField extends StatefulWidget {
   const ShopNameField({
     super.key,
     required this.controller,
     required this.shops,
     required this.onChanged,
+    this.searchOtherShops,
   });
 
   final TextEditingController controller;
   final List<ShopRow> shops;
   final VoidCallback onChanged;
+  final Future<List<ShopRow>> Function(String query)? searchOtherShops;
 
-  List<ShopRow> get matches => matchingShops(shops, controller.text);
+  @override
+  State<ShopNameField> createState() => _ShopNameFieldState();
+}
+
+class _ShopNameFieldState extends State<ShopNameField> {
+  Timer? _debounce;
+  List<ShopRow> _others = const [];
+  int _searchToken = 0;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onTextChanged(String _) {
+    widget.onChanged();
+    _scheduleOtherSearch();
+  }
+
+  void _scheduleOtherSearch() {
+    _debounce?.cancel();
+    final text = widget.controller.text;
+    if (ownCatalogMatchesQuery(widget.shops, text) || text.trim().isEmpty) {
+      if (_others.isNotEmpty) {
+        setState(() => _others = const []);
+      }
+      return;
+    }
+    if (widget.searchOtherShops == null) return;
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      unawaited(_loadOthers(text));
+    });
+  }
+
+  Future<void> _loadOthers(String text) async {
+    final search = widget.searchOtherShops;
+    if (search == null) return;
+    final token = ++_searchToken;
+    try {
+      final rows = await search(text);
+      if (!mounted || token != _searchToken) return;
+      if (ownCatalogMatchesQuery(widget.shops, widget.controller.text)) {
+        setState(() => _others = const []);
+        return;
+      }
+      setState(() => _others = rows);
+    } catch (_) {
+      if (!mounted || token != _searchToken) return;
+      setState(() => _others = const []);
+    }
+  }
+
+  void _pick(ShopRow shop) {
+    widget.controller.text = shop.displayName;
+    widget.controller.selection = TextSelection.collapsed(
+      offset: shop.displayName.length,
+    );
+    widget.onChanged();
+    if (_others.isNotEmpty) {
+      setState(() => _others = const []);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = matches;
+    final suggestions = shopLoggerSuggestions(
+      ownShops: widget.shops,
+      otherShops: _others,
+      query: widget.controller.text,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
-          controller: controller,
-          onChanged: (_) => onChanged(),
+          controller: widget.controller,
+          onChanged: _onTextChanged,
           textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
             labelText: 'Shop',
@@ -67,7 +115,7 @@ class ShopNameField extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 4),
             child: Column(
               children: [
-                for (final shop in suggestions)
+                for (final hit in suggestions)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     minLeadingWidth: 28,
@@ -76,18 +124,15 @@ class ShopNameField extends StatelessWidget {
                       color: AppColors.chocolate,
                     ),
                     title: Text(
-                      shop.displayName,
+                      hit.shop.displayName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    onTap: () {
-                      controller.text = shop.displayName;
-                      controller.selection = TextSelection.collapsed(
-                        offset: shop.displayName.length,
-                      );
-                      onChanged();
-                    },
+                    subtitle: hit.createdByAnotherUser
+                        ? const Text(kCreatedByAnotherUserSubtitle)
+                        : null,
+                    onTap: () => _pick(hit.shop),
                   ),
               ],
             ),

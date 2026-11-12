@@ -89,6 +89,75 @@ void main() {
     });
   });
 
+  group('shopLoggerSuggestions', () {
+    final own = [
+      shop('1', '50 Lan', nameZh: '五十嵐'),
+      shop('2', 'Lan Shan'),
+    ];
+    final other = ShopRow(
+      id: 'o1',
+      name: 'Tea & Magic Hand',
+      userId: 'other',
+      isUserAdded: true,
+    );
+
+    test('empty query does not list other users shops', () {
+      expect(
+        shopLoggerSuggestions(
+          ownShops: own,
+          otherShops: [other],
+          query: '',
+        ),
+        isEmpty,
+      );
+      expect(ownCatalogMatchesQuery(own, ''), isFalse);
+    });
+
+    test('own matches win and hide other-user rows', () {
+      final hits = shopLoggerSuggestions(
+        ownShops: own,
+        otherShops: [other, shop('x', 'Lantern')],
+        query: 'lan',
+      );
+      expect(hits.map((h) => h.shop.name), ['Lan Shan', '50 Lan']);
+      expect(hits.every((h) => !h.createdByAnotherUser), isTrue);
+    });
+
+    test('other-user shops appear only when own catalog has no match', () {
+      final hits = shopLoggerSuggestions(
+        ownShops: own,
+        otherShops: [other],
+        query: 'Tea',
+      );
+      expect(hits, hasLength(1));
+      expect(hits.single.shop.name, 'Tea & Magic Hand');
+      expect(hits.single.createdByAnotherUser, isTrue);
+    });
+
+    test('exact other-user name still suggests attach, not a new insert', () {
+      final hits = shopLoggerSuggestions(
+        ownShops: own,
+        otherShops: [other],
+        query: 'Tea & Magic Hand',
+      );
+      expect(hits.single.shop.id, 'o1');
+      expect(hits.single.createdByAnotherUser, isTrue);
+      expect(existingShopForName([other], 'tea & magic hand')?.id, 'o1');
+    });
+
+    test('attach existing on unique violation instead of inserting again', () {
+      expect(looksLikeUniqueViolation('duplicate key value 23505'), isTrue);
+      expect(
+        existingShopForName(own, 'Tea & Magic Hand'),
+        isNull,
+      );
+      expect(
+        mergeShopsForLog(own, [other]).map((s) => s.id),
+        containsAll(['1', '2', 'o1']),
+      );
+    });
+  });
+
   group('shop display + create', () {
     test('one line English / 中文, Chinese-only, English-only', () {
       expect(
@@ -168,6 +237,65 @@ void main() {
       expect(find.text('Social'), findsNothing);
       expect(find.text('Profile'), findsNothing);
       expect(find.byType(Expanded), findsNWidgets(4));
+    });
+  });
+
+  group('ShopNameField other-user rows', () {
+    testWidgets('shows Created by another user when own catalog has no match', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTeaTheme(),
+          home: Scaffold(
+            body: ShopNameField(
+              controller: controller,
+              shops: [shop('1', '50 Lan')],
+              onChanged: () {},
+              searchOtherShops: (_) async => [
+                ShopRow(
+                  id: 'o1',
+                  name: 'Tea & Magic Hand',
+                  userId: 'other',
+                  isUserAdded: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), 'Tea');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+      expect(find.text('Tea & Magic Hand'), findsOneWidget);
+      expect(find.text(kCreatedByAnotherUserSubtitle), findsOneWidget);
+    });
+
+    testWidgets('does not search others on an empty query', (tester) async {
+      var searched = false;
+      final controller = TextEditingController();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTeaTheme(),
+          home: Scaffold(
+            body: ShopNameField(
+              controller: controller,
+              shops: [shop('1', '50 Lan')],
+              onChanged: () {},
+              searchOtherShops: (_) async {
+                searched = true;
+                return const [];
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(searched, isFalse);
+      expect(find.text(kCreatedByAnotherUserSubtitle), findsNothing);
     });
   });
 }
