@@ -6,7 +6,7 @@ import '../theme/tokens.dart';
 import 'grade_circle.dart';
 import 'taste_details_sheet.dart';
 
-/// Avg sugar, favorite base, highest shop — lives on Profile in v1.
+/// Avg sugar, favorite base, highest shop, highest type — lives on Profile in v1.
 class TasteStatsCard extends StatelessWidget {
   const TasteStatsCard({super.key, required this.data});
 
@@ -15,6 +15,7 @@ class TasteStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final highest = data.highestRatedShop;
+    final highestType = data.highestRatedType;
     return Card(
       color: AppSurfaces.cardTint,
       child: Padding(
@@ -39,6 +40,14 @@ class TasteStatsCard extends StatelessWidget {
                   value: highest == null ? '—' : highest.shop.displayName,
                   trailing: GradeOrDash(
                     band: highest?.band,
+                    size: AppLayout.historyGradeSize,
+                  ),
+                ),
+                _Stat(
+                  label: kHighestTypeLabel,
+                  value: highestType == null ? '—' : highestType.type.name,
+                  trailing: GradeOrDash(
+                    band: highestType?.band,
                     size: AppLayout.historyGradeSize,
                   ),
                 ),

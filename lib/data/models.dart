@@ -361,6 +361,21 @@ class FavoriteShopForBase {
   AggregateBand? get band => bandForAverage(averageGrade);
 }
 
+/// One logged tea type, ranked by `avg(grade)` (not count).
+class TeaTypeRanking {
+  const TeaTypeRanking({
+    required this.type,
+    required this.averageGrade,
+    required this.lastLoggedAt,
+  });
+
+  final TeaTypeRow type;
+  final double averageGrade;
+  final DateTime lastLoggedAt;
+
+  AggregateBand? get band => bandForAverage(averageGrade);
+}
+
 class TasteProfile {
   const TasteProfile({
     required this.entries,
@@ -372,6 +387,7 @@ class TasteProfile {
     this.averageIcePercent,
     this.mostVisitedShop,
     this.favoriteShopsByBase = const [],
+    this.teaTypeRankings = const [],
     this.averagePrice,
     this.favoriteTopping,
     this.favoriteToppingColorHex,
@@ -388,6 +404,7 @@ class TasteProfile {
   final int? averageIcePercent;
   final ShopFeedItem? mostVisitedShop;
   final List<FavoriteShopForBase> favoriteShopsByBase;
+  final List<TeaTypeRanking> teaTypeRankings;
   final double? averagePrice;
   final String? favoriteTopping;
   final String? favoriteToppingColorHex;
@@ -395,6 +412,10 @@ class TasteProfile {
   final int? daysSinceLastDrink;
 
   bool get isEmpty => entries.isEmpty;
+
+  /// Highest `avg(grade)` among logged types; null when none have a type.
+  TeaTypeRanking? get highestRatedType =>
+      teaTypeRankings.isEmpty ? null : teaTypeRankings.first;
 }
 
 const drinkBases = <String>[kDrinkTypeMilk, kDrinkTypeTea, kDrinkTypeFruit];
