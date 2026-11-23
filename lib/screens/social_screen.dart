@@ -5,6 +5,7 @@ import '../data/hangouts.dart';
 import '../data/social.dart';
 import '../data/tea_repository.dart';
 import '../theme/tokens.dart';
+import '../widgets/friend_card.dart';
 import '../widgets/tea_skeleton.dart';
 import 'home_screen.dart';
 
@@ -32,6 +33,7 @@ class _SocialScreenState extends State<SocialScreen> {
   List<DirectoryProfile> _directory = const [];
   List<FriendshipRow> _friendships = const [];
   List<HangoutInvite> _hangouts = const [];
+  Map<String, int> _drinkCounts = const {};
   String? _busyId;
 
   @override
@@ -52,14 +54,13 @@ class _SocialScreenState extends State<SocialScreen> {
       _error = null;
     });
     try {
-      final directory = await widget.repo.loadDirectory();
-      final friendships = await widget.repo.loadFriendships();
-      final hangouts = await widget.repo.loadHangoutInvites();
+      final snapshot = await _loadSocial();
       if (!mounted) return;
       setState(() {
-        _directory = directory;
-        _friendships = friendships;
-        _hangouts = hangouts;
+        _directory = snapshot.directory;
+        _friendships = snapshot.friendships;
+        _hangouts = snapshot.hangouts;
+        _drinkCounts = snapshot.drinkCounts;
         _loading = false;
       });
     } catch (e) {
@@ -116,15 +117,43 @@ class _SocialScreenState extends State<SocialScreen> {
     }
   }
 
-  Future<void> _reloadQuiet() async {
+  Future<
+    ({
+      List<DirectoryProfile> directory,
+      List<FriendshipRow> friendships,
+      List<HangoutInvite> hangouts,
+      Map<String, int> drinkCounts,
+    })
+  >
+  _loadSocial() async {
     final directory = await widget.repo.loadDirectory();
     final friendships = await widget.repo.loadFriendships();
     final hangouts = await widget.repo.loadHangoutInvites();
+    final me = widget.repo.userId ?? '';
+    final friends = acceptedFriends(
+      me: me,
+      rows: friendships,
+      directory: {for (final p in directory) p.id: p},
+    );
+    final drinkCounts = await widget.repo.loadFriendDrinkCounts([
+      for (final f in friends) f.id,
+    ]);
+    return (
+      directory: directory,
+      friendships: friendships,
+      hangouts: hangouts,
+      drinkCounts: drinkCounts,
+    );
+  }
+
+  Future<void> _reloadQuiet() async {
+    final snapshot = await _loadSocial();
     if (!mounted) return;
     setState(() {
-      _directory = directory;
-      _friendships = friendships;
-      _hangouts = hangouts;
+      _directory = snapshot.directory;
+      _friendships = snapshot.friendships;
+      _hangouts = snapshot.hangouts;
+      _drinkCounts = snapshot.drinkCounts;
       _loading = false;
       _error = null;
     });
@@ -252,17 +281,14 @@ class _SocialScreenState extends State<SocialScreen> {
               style: TextStyle(color: AppColors.chocolate),
             )
           else
-            for (final friend in friends)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                minVerticalPadding: 12,
-                title: Text(
-                  friend.username,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
+            for (final friend in friends) ...[
+              FriendCard(
+                friend: friend,
+                drinkCount: _drinkCounts[friend.id] ?? 0,
                 onTap: () => context.push('/social/friends/${friend.id}'),
               ),
+              const SizedBox(height: 12),
+            ],
         ],
       ),
     );

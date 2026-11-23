@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/models.dart';
+import '../data/social.dart';
 import '../data/tea_repository.dart';
 import '../data/tea_types.dart';
 import '../theme/tokens.dart';
@@ -13,7 +14,7 @@ import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
 /// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
-const kAppDisplayVersion = 'v. 0.30';
+const kAppDisplayVersion = 'v. 0.31';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -71,6 +72,12 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(email),
+                      const SizedBox(height: 16),
+                      _FavoriteDrinkField(
+                        key: ValueKey(repo.account?.favoriteDrink ?? ''),
+                        repo: repo,
+                        initial: repo.account?.favoriteDrink ?? '',
+                      ),
                     ],
                   ),
                 ),
@@ -148,6 +155,86 @@ class ProfileVersionLabel extends StatelessWidget {
         fontWeight: FontWeight.w500,
         height: 1,
       ),
+    );
+  }
+}
+
+class _FavoriteDrinkField extends StatefulWidget {
+  const _FavoriteDrinkField({
+    super.key,
+    required this.repo,
+    required this.initial,
+  });
+
+  final TeaRepository repo;
+  final String initial;
+
+  @override
+  State<_FavoriteDrinkField> createState() => _FavoriteDrinkFieldState();
+}
+
+class _FavoriteDrinkFieldState extends State<_FavoriteDrinkField> {
+  late final TextEditingController _controller;
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initial);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _persist() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.repo.updateFavoriteDrink(_controller.text);
+      if (mounted) setState(() => _error = null);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Couldn’t save favorite drink. $kFavoriteDrinkSqlHint';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          kFavoriteDrinkLabel,
+          style: TextStyle(color: AppColors.chocolate),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _controller,
+          maxLength: kFavoriteDrinkMaxLength,
+          maxLines: 1,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            hintText: kFavoriteDrinkHint,
+            counterText: '',
+          ),
+          onSubmitted: (_) => _persist(),
+          onEditingComplete: _persist,
+          onTapOutside: (_) => _persist(),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: const TextStyle(color: AppColors.gradeD)),
+        ],
+      ],
     );
   }
 }

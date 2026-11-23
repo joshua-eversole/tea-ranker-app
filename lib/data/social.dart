@@ -24,6 +24,51 @@ const kFriendLoadingCopy = 'Loading their log…';
 const kFriendErrorCopy = 'Couldn’t load this friend’s log.';
 const kSocialSqlHint =
     'Paste supabase/friendships_status_and_rls.sql in the Supabase SQL editor.';
+const kFavoriteDrinkLabel = 'Favorite drink';
+const kFavoriteDrinkHint = 'Brown sugar boba';
+const kFavoriteDrinkSqlHint =
+    'Paste supabase/profiles_favorite_drink.sql in the Supabase SQL editor.';
+const kFavoriteDrinkMaxLength = 80;
+
+String? trimFavoriteDrink(String? raw) {
+  final t = raw?.trim();
+  if (t == null || t.isEmpty) return null;
+  if (t.length <= kFavoriteDrinkMaxLength) return t;
+  return t.substring(0, kFavoriteDrinkMaxLength).trim();
+}
+
+/// First letter of the username, or first letters of the first two tokens.
+String usernameInitials(String username) {
+  final trimmed = username.trim();
+  if (trimmed.isEmpty) return '?';
+  final parts = [
+    for (final p in trimmed.split(RegExp(r'[\s_\-]+')))
+      if (p.isNotEmpty) p,
+  ];
+  if (parts.length >= 2) {
+    return '${_firstGrapheme(parts[0])}${_firstGrapheme(parts[1])}'
+        .toUpperCase();
+  }
+  return _firstGrapheme(parts.first).toUpperCase();
+}
+
+String _firstGrapheme(String value) {
+  final runes = value.runes;
+  if (runes.isEmpty) return '';
+  return String.fromCharCode(runes.first);
+}
+
+String friendDrinksLoggedCopy(int count) {
+  return count == 1 ? '1 drink logged' : '$count drinks logged';
+}
+
+Map<String, int> countDrinksByUserId(Iterable<DrinkEntryRow> entries) {
+  final counts = <String, int>{};
+  for (final e in entries) {
+    counts[e.userId] = (counts[e.userId] ?? 0) + 1;
+  }
+  return counts;
+}
 
 enum FriendshipStatus { pending, accepted, declined }
 
@@ -69,14 +114,20 @@ class FriendshipRow {
 }
 
 class DirectoryProfile {
-  const DirectoryProfile({required this.id, required this.username});
+  const DirectoryProfile({
+    required this.id,
+    required this.username,
+    this.favoriteDrink,
+  });
   final String id;
   final String username;
+  final String? favoriteDrink;
 
   factory DirectoryProfile.fromMap(Map<String, dynamic> map) =>
       DirectoryProfile(
         id: map['id'] as String,
         username: (map['username'] as String?) ?? '',
+        favoriteDrink: trimFavoriteDrink(map['favorite_drink'] as String?),
       );
 }
 
