@@ -367,10 +367,7 @@ class TeaRepository extends ChangeNotifier {
 
       profile = buildTasteProfile(
         entries,
-        mergeShopsForLog(
-          shops,
-          entries.map((e) => e.shop),
-        ),
+        mergeShopsForLog(shops, entries.map((e) => e.shop)),
       );
       loading = false;
       notifyListeners();
@@ -404,7 +401,10 @@ class TeaRepository extends ChangeNotifier {
     if (uid == null) {
       throw StateError('Not signed in');
     }
-    final own = existingShopForName(profile?.shops ?? const <ShopRow>[], rawName);
+    final own = existingShopForName(
+      profile?.shops ?? const <ShopRow>[],
+      rawName,
+    );
     if (own != null) return own;
     final existing = await findExistingShopByName(rawName);
     if (existing != null) return existing;
@@ -798,6 +798,26 @@ class TeaRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> updateFavoriteDrink(String raw) async {
+    final uid = userId;
+    if (uid == null) {
+      throw StateError('Not signed in');
+    }
+    final value = trimFavoriteDrink(raw);
+    await _client
+        .from('profiles')
+        .update({'favorite_drink': value})
+        .eq('id', uid);
+    final current = account;
+    if (current != null) {
+      account = current.copyWith(
+        favoriteDrink: value,
+        clearFavoriteDrink: value == null,
+      );
+      notifyListeners();
+    }
+  }
+
   Future<void> updateToppingColor({
     required String toppingId,
     required String colorHex,
@@ -1025,11 +1045,37 @@ class TeaRepository extends ChangeNotifier {
   }
 
   Future<List<DirectoryProfile>> loadDirectory() async {
-    final rows = await _client.from('profiles').select('id, username');
+    dynamic rows;
+    try {
+      rows = await _client
+          .from('profiles')
+          .select('id, username, favorite_drink');
+    } catch (_) {
+      rows = await _client.from('profiles').select('id, username');
+    }
     return [
       for (final raw in rows as List)
         DirectoryProfile.fromMap(Map<String, dynamic>.from(raw as Map)),
     ];
+  }
+
+  /// Counts of `drink_entries` the signed-in user may already SELECT for friends.
+  Future<Map<String, int>> loadFriendDrinkCounts(List<String> friendIds) async {
+    if (friendIds.isEmpty) return {};
+    try {
+      final rows = await _client
+          .from('drink_entries')
+          .select('user_id')
+          .inFilter('user_id', friendIds);
+      final counts = <String, int>{};
+      for (final raw in rows as List) {
+        final id = (raw as Map)['user_id'] as String;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      return counts;
+    } catch (_) {
+      return {for (final id in friendIds) id: 0};
+    }
   }
 
   Future<List<FriendshipRow>> loadFriendships() async {

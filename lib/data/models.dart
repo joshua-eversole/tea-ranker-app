@@ -12,11 +12,15 @@ class ProfileRow {
     required this.username,
     this.defaultSugarPercent = 50,
     this.defaultIcePercent = 50,
+    this.favoriteDrink,
   });
   final String id;
   final String username;
   final int defaultSugarPercent;
   final int defaultIcePercent;
+
+  /// User-set on Profile. Not inferred. Null when empty / unset.
+  final String? favoriteDrink;
 
   factory ProfileRow.fromMap(Map<String, dynamic> map) => ProfileRow(
     id: map['id'] as String,
@@ -27,18 +31,24 @@ class ProfileRow {
     defaultIcePercent: snapPercent(
       (map['default_ice_percent'] as num?)?.toInt() ?? 50,
     ),
+    favoriteDrink: trimToNull(map['favorite_drink'] as String?),
   );
 
   ProfileRow copyWith({
     String? username,
     int? defaultSugarPercent,
     int? defaultIcePercent,
+    String? favoriteDrink,
+    bool clearFavoriteDrink = false,
   }) {
     return ProfileRow(
       id: id,
       username: username ?? this.username,
       defaultSugarPercent: defaultSugarPercent ?? this.defaultSugarPercent,
       defaultIcePercent: defaultIcePercent ?? this.defaultIcePercent,
+      favoriteDrink: clearFavoriteDrink
+          ? null
+          : (favoriteDrink ?? this.favoriteDrink),
     );
   }
 }
