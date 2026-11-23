@@ -99,6 +99,20 @@ class TasteDetailsSheet extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (data.teaTypeRankings.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6, bottom: 2),
+                      child: Text(
+                        kTeaTypeRankingsLabel,
+                        style: TextStyle(
+                          color: AppColors.chocolate,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    for (final row in data.teaTypeRankings)
+                      _TypeRankRow(row: row),
+                  ],
                   _DetailRow(
                     label: 'Average price',
                     value: formatAveragePrice(data.averagePrice),
@@ -124,6 +138,33 @@ class TasteDetailsSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TypeRankRow extends StatelessWidget {
+  const _TypeRankRow({required this.row});
+
+  final TeaTypeRanking row;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              row.type.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GradeOrDash(band: row.band, size: 36),
+        ],
       ),
     );
   }

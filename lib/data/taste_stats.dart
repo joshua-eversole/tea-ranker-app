@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'tea_types.dart';
 
 /// Overlay open control on the compact Taste Profile card.
 const kMoreTasteDetailsLabel = 'More taste details';
@@ -9,6 +10,8 @@ const kOpenTasteDetailsHint = 'Open for more information';
 const kTasteDetailsTitle = 'Taste details';
 const kNoDrinksYetCopy = 'No drinks yet';
 const kCloseTasteDetailsTooltip = 'Close';
+const kHighestTypeLabel = 'Highest type';
+const kTeaTypeRankingsLabel = 'Tea type rankings';
 
 /// Bases that get a “favorite shop” row. Skip any the user has never logged.
 const kTasteDetailBases = <String>['Tea-based', 'Milk-based', 'Fruit-based'];
@@ -61,7 +64,7 @@ TasteProfile buildTasteProfile(
     avgIce = _meanInt(sorted.map((e) => e.iceLevel).whereType<int>());
     avgPrice =
         sorted.map((e) => e.price).reduce((a, b) => a + b) / sorted.length;
-    favoriteBase = _favoriteByCount(sorted, keyOf: (e) => e.drinkType);
+    favoriteBase = _favoriteBaseByAvg(sorted);
     final favTop = _favoriteTopping(sorted);
     favoriteTopping = favTop?.name;
     favoriteToppingColorHex = favTop?.colorHex;
@@ -135,6 +138,7 @@ TasteProfile buildTasteProfile(
     averageIcePercent: avgIce,
     mostVisitedShop: mostVisited,
     favoriteShopsByBase: favoriteShopsByBase,
+    teaTypeRankings: _teaTypeRankings(sorted),
     averagePrice: avgPrice,
     favoriteTopping: favoriteTopping,
     favoriteToppingColorHex: favoriteToppingColorHex,
@@ -150,26 +154,67 @@ int? _meanInt(Iterable<int> values) {
   return mean.round();
 }
 
-String? _favoriteByCount(
-  List<DrinkEntryRow> recencyDesc, {
-  required String Function(DrinkEntryRow) keyOf,
-}) {
-  final counts = <String, int>{};
-  for (final e in recencyDesc) {
-    final key = keyOf(e);
-    counts[key] = (counts[key] ?? 0) + 1;
-  }
-  var bestCount = 0;
-  String? favorite;
-  for (final e in recencyDesc) {
-    final key = keyOf(e);
-    final c = counts[key] ?? 0;
-    if (c > bestCount) {
-      bestCount = c;
-      favorite = key;
+double? _averageGrade(Iterable<DrinkEntryRow> entries) {
+  final grades = entries
+      .map((e) => e.grade ?? e.letter?.points)
+      .whereType<int>()
+      .toList();
+  if (grades.isEmpty) return null;
+  return grades.reduce((a, b) => a + b) / grades.length;
+}
+
+/// Highest `avg(grade)` among Tea / Milk / Fruit. Skip a base with none.
+/// Tie = most recent drink of that base (same idea as favorite shop).
+String? _favoriteBaseByAvg(List<DrinkEntryRow> recencyDesc) {
+  String? best;
+  double? bestAvg;
+  DateTime? bestRecent;
+  for (final base in kTasteDetailBases) {
+    final ofType = recencyDesc.where((e) => e.drinkType == base).toList();
+    if (ofType.isEmpty) continue;
+    final avg = _averageGrade(ofType);
+    if (avg == null) continue;
+    final recent = ofType.first.loggedAt;
+    if (best == null ||
+        avg > bestAvg! ||
+        (avg == bestAvg && (bestRecent == null || recent.isAfter(bestRecent)))) {
+      best = base;
+      bestAvg = avg;
+      bestRecent = recent;
     }
   }
-  return favorite;
+  return best;
+}
+
+/// Types the user has logged, highest `avg(grade)` first. Skip types with no drinks.
+List<TeaTypeRanking> _teaTypeRankings(List<DrinkEntryRow> recencyDesc) {
+  final byId = <String, List<DrinkEntryRow>>{};
+  final typeById = <String, TeaTypeRow>{};
+  for (final e in recencyDesc) {
+    final type = e.teaType;
+    if (type == null) continue;
+    byId.putIfAbsent(type.id, () => []).add(e);
+    typeById.putIfAbsent(type.id, () => type);
+  }
+  final rankings = <TeaTypeRanking>[];
+  for (final grouping in byId.entries) {
+    final list = grouping.value;
+    final avg = _averageGrade(list);
+    if (avg == null) continue;
+    rankings.add(
+      TeaTypeRanking(
+        type: typeById[grouping.key]!,
+        averageGrade: avg,
+        lastLoggedAt: list.first.loggedAt,
+      ),
+    );
+  }
+  rankings.sort((a, b) {
+    final byGrade = b.averageGrade.compareTo(a.averageGrade);
+    if (byGrade != 0) return byGrade;
+    return b.lastLoggedAt.compareTo(a.lastLoggedAt);
+  });
+  return rankings;
 }
 
 ToppingRow? _favoriteTopping(List<DrinkEntryRow> recencyDesc) {

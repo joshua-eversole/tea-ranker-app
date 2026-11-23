@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tea_ranker/data/models.dart';
 import 'package:tea_ranker/data/taste_stats.dart';
+import 'package:tea_ranker/data/tea_types.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/theme/tokens.dart';
 import 'package:tea_ranker/widgets/taste_stats_card.dart';
@@ -25,6 +26,7 @@ DrinkEntryRow drink({
   int grade = 4,
   List<ToppingRow> toppings = const [],
   ShopRow? shopRow,
+  TeaTypeRow? teaType,
 }) {
   return DrinkEntryRow(
     id: id,
@@ -39,10 +41,20 @@ DrinkEntryRow drink({
     overallGrade: LetterGrade.fromPoints(grade)?.letter,
     notes: null,
     loggedAt: loggedAt,
+    teaTypeId: teaType?.id,
+    teaType: teaType,
     shop: shopRow,
     toppings: toppings,
   );
 }
+
+TeaTypeRow teaType(String id, String name) => TeaTypeRow(
+      id: id,
+      name: name,
+      userId: 'u1',
+      isPrimary: const ['Black', 'Green', 'Oolong'].contains(name),
+      isUserAdded: false,
+    );
 
 ToppingRow topping(String id, String name) => ToppingRow(
       id: id,
@@ -67,6 +79,8 @@ void main() {
     expect(profile.highestRatedShop, isNull);
     expect(profile.mostVisitedShop, isNull);
     expect(profile.favoriteShopsByBase, isEmpty);
+    expect(profile.teaTypeRankings, isEmpty);
+    expect(profile.highestRatedType, isNull);
     expect(profile.averagePrice, isNull);
     expect(profile.favoriteTopping, isNull);
     expect(profile.daysSinceLastDrink, isNull);
@@ -213,6 +227,175 @@ void main() {
     expect(profile.favoriteTopping, 'Pudding');
   });
 
+  test('favorite base uses highest avg grade, not most bought', () {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'milk-s',
+          shopId: lan.id,
+          drinkType: 'Milk-based',
+          grade: 5,
+          loggedAt: DateTime(2026, 10, 10),
+        ),
+        drink(
+          id: 'tea-1',
+          shopId: lan.id,
+          drinkType: 'Tea-based',
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 11),
+        ),
+        drink(
+          id: 'tea-2',
+          shopId: lan.id,
+          drinkType: 'Tea-based',
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 12),
+        ),
+        drink(
+          id: 'tea-3',
+          shopId: lan.id,
+          drinkType: 'Tea-based',
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 13),
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.favoriteBase, 'Milk-based');
+  });
+
+  test('favorite base ties break on the most recent drink of that base', () {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'tea',
+          shopId: lan.id,
+          drinkType: 'Tea-based',
+          grade: 4,
+          loggedAt: DateTime(2026, 10, 10),
+        ),
+        drink(
+          id: 'milk',
+          shopId: lan.id,
+          drinkType: 'Milk-based',
+          grade: 4,
+          loggedAt: DateTime(2026, 10, 18),
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.favoriteBase, 'Milk-based');
+  });
+
+  test('favorite base skips a base with no drinks and ignores Other', () {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'fruit',
+          shopId: lan.id,
+          drinkType: 'Fruit-based',
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 10),
+        ),
+        drink(
+          id: 'other',
+          shopId: lan.id,
+          drinkType: 'Other',
+          grade: 5,
+          loggedAt: DateTime(2026, 10, 18),
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.favoriteBase, 'Fruit-based');
+  });
+
+  test('tea type rankings use avg grade, skip types with no drinks', () {
+    final black = teaType('tt-black', 'Black');
+    final matcha = teaType('tt-matcha', 'Matcha');
+    final oolong = teaType('tt-oolong', 'Oolong');
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'b1',
+          shopId: lan.id,
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 1),
+          teaType: black,
+        ),
+        drink(
+          id: 'b2',
+          shopId: lan.id,
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 2),
+          teaType: black,
+        ),
+        drink(
+          id: 'b3',
+          shopId: lan.id,
+          grade: 3,
+          loggedAt: DateTime(2026, 10, 3),
+          teaType: black,
+        ),
+        drink(
+          id: 'm1',
+          shopId: lan.id,
+          grade: 5,
+          loggedAt: DateTime(2026, 10, 4),
+          teaType: matcha,
+        ),
+        drink(
+          id: 'none',
+          shopId: lan.id,
+          grade: 5,
+          loggedAt: DateTime(2026, 10, 5),
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.teaTypeRankings.map((e) => e.type.name).toList(), [
+      'Matcha',
+      'Black',
+    ]);
+    expect(profile.highestRatedType?.type.name, 'Matcha');
+    expect(profile.highestRatedType?.band, AggregateBand.s);
+    expect(profile.teaTypeRankings.last.band, AggregateBand.b);
+    expect(
+      profile.teaTypeRankings.any((e) => e.type.id == oolong.id),
+      isFalse,
+    );
+  });
+
+  test('tea type ranking ties break on the most recent drink of that type', () {
+    final black = teaType('tt-black', 'Black');
+    final green = teaType('tt-green', 'Green');
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'black',
+          shopId: lan.id,
+          grade: 4,
+          loggedAt: DateTime(2026, 10, 10),
+          teaType: black,
+        ),
+        drink(
+          id: 'green',
+          shopId: lan.id,
+          grade: 4,
+          loggedAt: DateTime(2026, 10, 18),
+          teaType: green,
+        ),
+      ],
+      [lan],
+    );
+    expect(profile.teaTypeRankings.map((e) => e.type.name).toList(), [
+      'Green',
+      'Black',
+    ]);
+    expect(profile.highestRatedType?.type.name, 'Green');
+    expect(profile.highestRatedType?.band, AggregateBand.a);
+  });
+
   test('days since last drink is calendar days and 0 if today', () {
     final today = DateTime(2026, 10, 19, 22, 10);
     final sameDay = buildTasteProfile(
@@ -271,6 +454,7 @@ void main() {
     );
 
     expect(find.text('Avg sugar'), findsOneWidget);
+    expect(find.text(kHighestTypeLabel), findsOneWidget);
     expect(find.text(kMoreTasteDetailsLabel), findsOneWidget);
     expect(find.text(kTasteDetailsTitle), findsNothing);
 
@@ -283,6 +467,7 @@ void main() {
     expect(find.text('Most visited shop'), findsOneWidget);
     expect(find.text('Favorite Tea-based shop'), findsOneWidget);
     expect(find.text('Favorite Milk-based shop'), findsNothing);
+    expect(find.text(kTeaTypeRankingsLabel), findsNothing);
     expect(find.text('Average price'), findsOneWidget);
     expect(find.text('NT\$ 65'), findsOneWidget);
     expect(find.text('Favorite topping'), findsOneWidget);
@@ -315,5 +500,56 @@ void main() {
     expect(find.text('—'), findsWidgets);
     expect(find.text('Avg ice'), findsOneWidget);
     expect(find.text('Favorite Tea-based shop'), findsNothing);
+    expect(find.text(kTeaTypeRankingsLabel), findsNothing);
+    expect(find.text(kHighestTypeLabel), findsOneWidget);
+  });
+
+  testWidgets('sheet lists tea type rankings by avg grade with letters', (
+    tester,
+  ) async {
+    final black = teaType('tt-black', 'Black');
+    final matcha = teaType('tt-matcha', 'Matcha');
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: 'b1',
+          shopId: lan.id,
+          grade: 3,
+          ice: 40,
+          loggedAt: DateTime(2026, 10, 1),
+          shopRow: lan,
+          teaType: black,
+        ),
+        drink(
+          id: 'm1',
+          shopId: lan.id,
+          grade: 5,
+          ice: 40,
+          loggedAt: DateTime(2026, 10, 2),
+          shopRow: lan,
+          teaType: matcha,
+        ),
+      ],
+      [lan],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(body: TasteStatsCard(data: profile)),
+      ),
+    );
+
+    expect(find.text('Matcha'), findsOneWidget);
+    expect(find.text('S'), findsWidgets);
+
+    await tester.tap(find.text(kMoreTasteDetailsLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(kTeaTypeRankingsLabel), findsOneWidget);
+    expect(find.text('Matcha'), findsWidgets);
+    expect(find.text('Black'), findsOneWidget);
+    expect(find.text('S'), findsWidgets);
+    expect(find.text('B'), findsOneWidget);
   });
 }
