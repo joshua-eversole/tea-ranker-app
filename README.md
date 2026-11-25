@@ -126,7 +126,7 @@ Paste [`supabase/shop_brands_and_logos.sql`](supabase/shop_brands_and_logos.sql)
 
 Then paste [`supabase/shop_brands_tint_home.sql`](supabase/shop_brands_tint_home.sql): `profiles.tint_home_with_logos` default **true** (existing null/false → true) and `shop_brands.tint_home` (default true). No `service_role`. Does not wipe Joshua’s log.
 
-Then paste [`supabase/shop_brands_tint_strength.sql`](supabase/shop_brands_tint_strength.sql): `shop_brands.tint_strength` (0–100, default **40**). Additive; existing brands get 40. No `service_role`.
+Then paste [`supabase/shop_brands_tint_strength.sql`](supabase/shop_brands_tint_strength.sql) if the column is missing: `shop_brands.tint_strength` (0–100). Then paste [`supabase/shop_brands_tint_strength_default_75.sql`](supabase/shop_brands_tint_strength_default_75.sql): default **75**; rows still at **40** (old default) become 75; custom values stay. No `service_role`. Does not wipe Joshua’s log.
 
 ## Fixed sugar / ice SQL (Supabase)
 

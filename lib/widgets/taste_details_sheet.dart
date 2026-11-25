@@ -4,12 +4,19 @@ import '../data/models.dart';
 import '../data/taste_stats.dart';
 import '../theme/tokens.dart';
 import 'grade_circle.dart';
+import 'shop_logo_circle.dart';
 import 'shop_name_text.dart';
 import 'topping_chip.dart';
+
+const kTasteSheetHeaderPadding = EdgeInsets.fromLTRB(16, 4, 4, 0);
+const kTasteSheetListPadding = EdgeInsets.fromLTRB(16, 0, 16, 12);
+const kTasteDetailRowPadding = EdgeInsets.symmetric(vertical: 4);
+const kTasteTypeRankPadding = EdgeInsets.symmetric(vertical: 4);
 
 Future<void> showTasteDetailsSheet({
   required BuildContext context,
   required TasteProfile data,
+  String? Function(ShopRow shop)? shopLogoUrl,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -21,14 +28,22 @@ Future<void> showTasteDetailsSheet({
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.card)),
     ),
-    builder: (context) => TasteDetailsSheet(data: data),
+    builder: (context) => TasteDetailsSheet(
+      data: data,
+      shopLogoUrl: shopLogoUrl,
+    ),
   );
 }
 
 class TasteDetailsSheet extends StatelessWidget {
-  const TasteDetailsSheet({super.key, required this.data});
+  const TasteDetailsSheet({
+    super.key,
+    required this.data,
+    this.shopLogoUrl,
+  });
 
   final TasteProfile data;
+  final String? Function(ShopRow shop)? shopLogoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +55,7 @@ class TasteDetailsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 4, 0),
+              padding: kTasteSheetHeaderPadding,
               child: Row(
                 children: [
                   Expanded(
@@ -60,11 +75,11 @@ class TasteDetailsSheet extends StatelessWidget {
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                padding: kTasteSheetListPadding,
                 children: [
                   if (data.isEmpty)
                     const Padding(
-                      padding: EdgeInsets.only(bottom: 16),
+                      padding: EdgeInsets.only(bottom: 8),
                       child: Text(
                         kNoDrinksYetCopy,
                         style: TextStyle(color: AppColors.chocolate),
@@ -90,7 +105,12 @@ class TasteDetailsSheet extends StatelessWidget {
                     _DetailRow(
                       label: favoriteShopLabelForBase(row.drinkType),
                       value: row.shop.displayName,
-                      trailing: GradeOrDash(band: row.band, size: 36),
+                      trailing: ShopLetterOrLogo(
+                        shop: row.shop,
+                        band: row.band,
+                        size: 36,
+                        logoUrl: shopLogoUrl?.call(row.shop),
+                      ),
                       valueWidget: ShopNameText(
                         shop: row.shop,
                         nameStyle: const TextStyle(
@@ -101,7 +121,7 @@ class TasteDetailsSheet extends StatelessWidget {
                     ),
                   if (data.teaTypeRankings.isNotEmpty) ...[
                     const Padding(
-                      padding: EdgeInsets.only(top: 6, bottom: 2),
+                      padding: EdgeInsets.only(top: 4, bottom: 0),
                       child: Text(
                         kTeaTypeRankingsLabel,
                         style: TextStyle(
@@ -151,7 +171,7 @@ class _TypeRankRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: kTasteTypeRankPadding,
       child: Row(
         children: [
           Expanded(
@@ -186,7 +206,7 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: kTasteDetailRowPadding,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -201,7 +221,7 @@ class _DetailRow extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 valueWidget ??
                     Text(
                       value,

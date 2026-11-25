@@ -28,11 +28,11 @@ const kHomeLogoCircleLeftShift = 10.0;
 /// Deeper cream mix than [kGradeWashMix] for the no-logo Home circle fill.
 const kHomeLogoCircleWashMix = 0.30;
 
-/// Logo page/row wash at default tint strength (40 → mix 0.40).
-const kLogoWashMix = 0.40;
+/// Logo page/row wash at default tint strength (75 → mix 0.75).
+const kLogoWashMix = 0.75;
 
 /// Stored `shop_brands.tint_strength` when the column is missing.
-const kDefaultTintStrength = 40;
+const kDefaultTintStrength = 75;
 
 /// Mix at tint strength 0 — a whisper of hue, not plain cream.
 const kLogoWashBarelyMix = 0.05;
@@ -45,7 +45,7 @@ int snapTintStrength(int? value) {
   return value.clamp(0, 100);
 }
 
-/// 0 → barely there; 40 → [kLogoWashMix]; 100 → full hue (then readable floor).
+/// 0 → barely there; 75 → [kLogoWashMix]; 100 → full hue (then readable floor).
 double logoWashMixFromStrength(int? strength) {
   final t = snapTintStrength(strength);
   if (t <= 0) return kLogoWashBarelyMix;
