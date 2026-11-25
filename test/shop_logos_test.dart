@@ -157,18 +157,22 @@ void main() {
     );
   });
 
-  test('tint strength 0 is barely there; 40 matches kLogoWashMix; 100 stronger', () {
-    expect(kDefaultTintStrength, 40);
-    expect(logoWashMixFromStrength(40), kLogoWashMix);
+  test('tint strength 0 is barely there; 75 matches kLogoWashMix; 100 stronger', () {
+    expect(kDefaultTintStrength, 75);
+    expect(kLogoWashMix, 0.75);
+    expect(logoWashMixFromStrength(75), kLogoWashMix);
+    expect(logoWashMixFromStrength(40), isNot(kLogoWashMix));
     expect(logoWashMixFromStrength(0), kLogoWashBarelyMix);
     expect(logoWashMixFromStrength(0), greaterThan(0));
     expect(logoWashMixFromStrength(100), 1.0);
     const hue = '#E6B422';
     final light = logoPageWash(hue, tintStrength: 0);
-    final mid = logoPageWash(hue, tintStrength: 40);
+    final mid = logoPageWash(hue, tintStrength: 75);
+    final oldDefault = logoPageWash(hue, tintStrength: 40);
     final strong = logoPageWash(hue, tintStrength: 100);
     expect(light, isNot(AppColors.cream));
     expect(light, isNot(mid));
+    expect(oldDefault, isNot(mid));
     expect(strong, isNot(mid));
     expect(
       shopDetailsPageWash(
@@ -318,6 +322,11 @@ void main() {
     );
     expect(find.byType(BobaCupIcon), findsNothing);
     expect(find.byType(Image), findsOneWidget);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.fit, BoxFit.cover);
+    expect(image.alignment, Alignment.center);
+    expect(image.width, kHomeLogoCircleSize);
+    expect(image.height, kHomeLogoCircleSize);
   });
 
   testWidgets('shop-details header without logo still shows the letter', (

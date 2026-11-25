@@ -113,7 +113,11 @@ class _FriendTasteScreenState extends State<FriendTasteScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                TasteStatsCard(data: data),
+                TasteStatsCard(
+                  data: data,
+                  shopLogoUrl: (shop) =>
+                      widget.repo.publicLogoUrl(widget.repo.brandFor(shop)),
+                ),
                 const SizedBox(height: 28),
                 Text(
                   kFriendLastDrinksTitle,

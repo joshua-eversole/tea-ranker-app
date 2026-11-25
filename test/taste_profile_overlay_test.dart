@@ -5,6 +5,8 @@ import 'package:tea_ranker/data/taste_stats.dart';
 import 'package:tea_ranker/data/tea_types.dart';
 import 'package:tea_ranker/grading/grade.dart';
 import 'package:tea_ranker/theme/tokens.dart';
+import 'package:tea_ranker/widgets/shop_logo_circle.dart';
+import 'package:tea_ranker/widgets/taste_details_sheet.dart';
 import 'package:tea_ranker/widgets/taste_stats_card.dart';
 
 ShopRow shop(String id, String name, {String? zh}) => ShopRow(
@@ -551,5 +553,79 @@ void main() {
     expect(find.text('Black'), findsOneWidget);
     expect(find.text('S'), findsWidgets);
     expect(find.text('B'), findsOneWidget);
+  });
+
+  testWidgets('shop letter becomes a logo circle when the chain has a logo', (
+    tester,
+  ) async {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: '1',
+          shopId: lan.id,
+          grade: 5,
+          ice: 40,
+          loggedAt: DateTime(2026, 10, 1),
+          shopRow: lan,
+        ),
+      ],
+      [lan],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(
+          body: TasteStatsCard(
+            data: profile,
+            shopLogoUrl: (shop) =>
+                shop.id == lan.id ? 'https://cdn.example/50lan.png' : null,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(ShopLetterOrLogo), findsOneWidget);
+    expect(find.byType(ShopLogoCircle), findsOneWidget);
+    expect(find.text('S'), findsNothing);
+
+    await tester.tap(find.text(kMoreTasteDetailsLabel));
+    await tester.pumpAndSettle();
+    expect(find.byType(ShopLogoCircle), findsWidgets);
+    expect(find.text('Favorite Tea-based shop'), findsOneWidget);
+    expect(find.text('S'), findsNothing);
+  });
+
+  testWidgets('shop letter stays when there is no chain logo', (tester) async {
+    final profile = buildTasteProfile(
+      [
+        drink(
+          id: '1',
+          shopId: lan.id,
+          grade: 5,
+          ice: 40,
+          loggedAt: DateTime(2026, 10, 1),
+          shopRow: lan,
+        ),
+      ],
+      [lan],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTeaTheme(),
+        home: Scaffold(body: TasteStatsCard(data: profile)),
+      ),
+    );
+
+    expect(find.text('S'), findsOneWidget);
+    expect(find.byType(ShopLogoCircle), findsNothing);
+  });
+
+  test('taste card and sheet padding is compact', () {
+    expect(kTasteCardPadding.vertical, lessThan(24));
+    expect(kTasteCardRunSpacing, lessThan(12));
+    expect(kTasteDetailRowPadding.vertical, lessThan(16));
+    expect(kTasteSheetListPadding.bottom, lessThan(24));
   });
 }

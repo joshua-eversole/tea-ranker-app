@@ -14,7 +14,7 @@ import '../widgets/topping_chip.dart';
 import '../widgets/topping_color_picker.dart';
 
 /// Hardcoded display; bump `v. 0.{PR}` on every new Origin PR.
-const kAppDisplayVersion = 'v. 0.31';
+const kAppDisplayVersion = 'v. 0.32';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.repo});
@@ -89,7 +89,10 @@ class ProfileScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                TasteStatsCard(data: data),
+                TasteStatsCard(
+                  data: data,
+                  shopLogoUrl: (shop) => repo.publicLogoUrl(repo.brandFor(shop)),
+                ),
               ],
               const SizedBox(height: 24),
               Text(

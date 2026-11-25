@@ -4,13 +4,28 @@ import '../data/models.dart';
 import '../data/taste_stats.dart';
 import '../theme/tokens.dart';
 import 'grade_circle.dart';
+import 'shop_logo_circle.dart';
 import 'taste_details_sheet.dart';
+
+/// Compact Taste Profile card padding (Profile + friend overlay).
+const kTasteCardPadding = EdgeInsets.fromLTRB(12, 8, 12, 4);
+
+const kTasteCardRunSpacing = 4.0;
+const kTasteCardSpacing = 8.0;
+const kTasteStatGap = 2.0;
 
 /// Avg sugar, favorite base, highest shop, highest type — lives on Profile in v1.
 class TasteStatsCard extends StatelessWidget {
-  const TasteStatsCard({super.key, required this.data});
+  const TasteStatsCard({
+    super.key,
+    required this.data,
+    this.shopLogoUrl,
+  });
 
   final TasteProfile data;
+
+  /// Public chain-logo URL for a shop, or null when none.
+  final String? Function(ShopRow shop)? shopLogoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -19,13 +34,13 @@ class TasteStatsCard extends StatelessWidget {
     return Card(
       color: AppSurfaces.cardTint,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: kTasteCardPadding,
         child: Column(
           children: [
             Wrap(
               alignment: WrapAlignment.spaceAround,
-              runSpacing: 12,
-              spacing: 12,
+              runSpacing: kTasteCardRunSpacing,
+              spacing: kTasteCardSpacing,
               children: [
                 _Stat(
                   label: 'Avg sugar',
@@ -38,10 +53,17 @@ class TasteStatsCard extends StatelessWidget {
                 _Stat(
                   label: 'Highest shop',
                   value: highest == null ? '—' : highest.shop.displayName,
-                  trailing: GradeOrDash(
-                    band: highest?.band,
-                    size: AppLayout.historyGradeSize,
-                  ),
+                  trailing: highest == null
+                      ? const GradeOrDash(
+                          band: null,
+                          size: AppLayout.historyGradeSize,
+                        )
+                      : ShopLetterOrLogo(
+                          shop: highest.shop,
+                          band: highest.band,
+                          size: AppLayout.historyGradeSize,
+                          logoUrl: shopLogoUrl?.call(highest.shop),
+                        ),
                 ),
                 _Stat(
                   label: kHighestTypeLabel,
@@ -53,18 +75,20 @@ class TasteStatsCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
             Align(
               alignment: Alignment.center,
               child: TextButton(
                 onPressed: () => showTasteDetailsSheet(
                   context: context,
                   data: data,
+                  shopLogoUrl: shopLogoUrl,
                 ),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.chocolate,
                   minimumSize: const Size(AppLayout.minTap, AppLayout.minTap),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
                 child: const Text(
                   kMoreTasteDetailsLabel,
@@ -101,7 +125,7 @@ class _Stat extends StatelessWidget {
             label,
             style: const TextStyle(color: AppColors.chocolate, fontSize: 12),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: kTasteStatGap),
           ?trailing,
           if (trailing == null)
             Text(
@@ -113,7 +137,7 @@ class _Stat extends StatelessWidget {
             )
           else
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(
                 value,
                 maxLines: 1,
